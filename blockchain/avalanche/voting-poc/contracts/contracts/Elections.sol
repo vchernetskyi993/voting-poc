@@ -25,6 +25,7 @@ contract Elections {
             election.start > block.timestamp,
             "Start should be in the future"
         );
+        require(election.start < election.end, "Start should be before end");
         // TODO: implement
         emit ElectionCreated(lastElectionId++, election);
     }

@@ -43,7 +43,7 @@ describe("Elections contract", () => {
     ]);
   });
 
-  it("Should emit created election", async () => {
+  it("Should emit created election", () => {
     const electionData = election();
     return expect(
       contract
@@ -53,15 +53,21 @@ describe("Elections contract", () => {
     ).to.eventually.deep.equal(asTuple(electionData));
   });
 
-  it("Should throw if start is before now", async () => {
+  it("Should throw if start is before now", () => {
     return expect(
       contract.createElection(election(dayjs().subtract(1, "day")))
     ).to.be.rejectedWith(/in the future/);
   });
 
-  it("Should throw if end is less than start", async () => {});
+  it("Should throw if end is less than start", () => {
+    return expect(
+      contract.createElection(election(dayjs().add(3, "day")))
+    ).to.be.rejectedWith(/before/);
+  });
 
-  it("Should save election on ledger", async () => {});
+  it("Should not create election by non-owner", () => {});
+
+  it("Should save election on ledger", () => {});
 
   function election(
     start: Dayjs = dayjs().add(1, "day"),
