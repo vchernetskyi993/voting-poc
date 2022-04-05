@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-contract Elections {
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract Elections is Ownable {
     struct Election {
         uint32 start;
         uint32 end;
@@ -19,14 +21,13 @@ contract Elections {
         // TODO: implement
     }
 
-    // TODO: limit to admins only
-    function createElection(Election calldata election) external {
+    function createElection(Election calldata election) external onlyOwner {
         require(
             election.start > block.timestamp,
             "Start should be in the future"
         );
         require(election.start < election.end, "Start should be before end");
-        // TODO: implement
+        elections.push(election);
         emit ElectionCreated(lastElectionId++, election);
     }
 }

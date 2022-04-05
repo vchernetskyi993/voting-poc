@@ -65,9 +65,25 @@ describe("Elections contract", () => {
     ).to.be.rejectedWith(/before/);
   });
 
-  it("Should not create election by non-owner", () => {});
+  it("Should not create election by non-owner", async () => {
+    const [, user] = await ethers.getSigners();
 
-  it("Should save election on ledger", () => {});
+    return expect(
+      contract.connect(user).createElection(election())
+    ).to.be.rejectedWith(/owner/);
+  });
+
+  it("Should save election on ledger", async () => {
+    const electionData = election();
+    const createdId = await contract
+      .createElection(electionData)
+      .then((r) => r.wait())
+      .then(getElectionId);
+
+    return expect(contract.elections(createdId)).to.be.eventually.deep.equal(
+      asTuple(electionData)
+    );
+  });
 
   function election(
     start: Dayjs = dayjs().add(1, "day"),
