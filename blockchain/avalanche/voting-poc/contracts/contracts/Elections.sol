@@ -12,8 +12,8 @@ contract Elections is Ownable {
         string[] candidates;
     }
 
-    uint256 public lastElectionId;
-    Election[] public elections;
+    uint256 private lastElectionId;
+    Election[] private elections;
 
     event ElectionCreated(uint256 electionId, Election election);
 
@@ -29,5 +29,9 @@ contract Elections is Ownable {
         require(election.start < election.end, "Start should be before end");
         elections.push(election);
         emit ElectionCreated(lastElectionId++, election);
+    }
+
+    function getElection(uint256 electionId) external view returns (Election memory) {
+        return elections[electionId];
     }
 }

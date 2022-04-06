@@ -24,23 +24,19 @@ describe("Elections contract", () => {
     await contract.deployed();
   });
 
-  it("Should increment election id", async () => {
-    const electionId = await contract.lastElectionId();
-
+  it("Should generate new ids", async () => {
     return Promise.all([
-      expect(
-        contract
-          .createElection(election())
-          .then((r) => r.wait())
-          .then(getElectionId)
-      ).to.eventually.equal(electionId),
-      expect(
-        contract
-          .createElection(election())
-          .then((r) => r.wait())
-          .then(getElectionId)
-      ).to.eventually.equal(electionId.add(1)),
-    ]);
+      contract
+        .createElection(election())
+        .then((r) => r.wait())
+        .then(getElectionId),
+      contract
+        .createElection(election())
+        .then((r) => r.wait())
+        .then(getElectionId),
+    ]).then(([first, second]) => {
+      expect(first).to.be.not.equal(second);
+    });
   });
 
   it("Should emit created election", () => {
@@ -80,7 +76,7 @@ describe("Elections contract", () => {
       .then((r) => r.wait())
       .then(getElectionId);
 
-    return expect(contract.elections(createdId)).to.be.eventually.deep.equal(
+    return expect(contract.getElection(createdId)).to.be.eventually.deep.equal(
       asTuple(electionData)
     );
   });
