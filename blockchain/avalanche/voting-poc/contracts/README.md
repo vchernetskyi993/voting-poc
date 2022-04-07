@@ -1,22 +1,21 @@
-# Advanced Sample Hardhat Project
+# Solidity contracts
 
-This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
+This project demonstrates Hardhat usage with Avalanche.
 
-The project comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts. It also comes with a variety of other tools, preconfigured to work with the project code.
-
-Try running some of the following tasks:
-
+Main build lifecycle commands are added as NPM scripts.
 ```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
+npm run clean
+npm run compile
+npm test
+npm run coverage
+npm run docgen
+```
+
+Other useful commands:
+```shell
 npx hardhat help
+npx hardhat node
 REPORT_GAS=true npx hardhat test
-npx hardhat coverage
-npx hardhat run scripts/deploy.ts
-TS_NODE_FILES=true npx ts-node scripts/deploy.ts
 npx eslint '**/*.{js,ts}'
 npx eslint '**/*.{js,ts}' --fix
 npx prettier '**/*.{json,sol,md}' --check
@@ -25,7 +24,38 @@ npx solhint 'contracts/**/*.sol'
 npx solhint 'contracts/**/*.sol' --fix
 ```
 
-# Etherscan verification
+## Deployment
+
+### Hardhat node
+
+1. Start EVM node.
+```shell
+npx hardhat node
+```
+
+2. Deploy Elections.
+```shell
+npx hardhat run --network localhost scripts/01_deploy_elections.ts
+```
+
+### Local Avalanche network:
+
+Requires `Go` installation.
+
+1. Start network.
+    1. Clone https://github.com/ava-labs/avalanche-network-runner
+
+    2. From `avalanche-network-runner` run:
+    ```shell
+    go run ./examples/local/fivenodenetwork/main.go
+    ```
+
+2. Deploy Elections.
+```shell
+npx hardhat run --network avalancheLocal scripts/01_deploy_elections.ts
+```
+
+## Etherscan verification
 
 To try out Etherscan verification, you first need to deploy a contract to an Ethereum network that's supported by Etherscan, such as Ropsten.
 
@@ -40,11 +70,3 @@ Then, copy the deployment address and paste it in to replace `DEPLOYED_CONTRACT_
 ```shell
 npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
 ```
-
-# Performance optimizations
-
-For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
-
-# Node details
-
-https://github.com/CatsMiaow/node-grpc-typescript

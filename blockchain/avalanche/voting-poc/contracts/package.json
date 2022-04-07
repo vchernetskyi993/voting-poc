@@ -4,8 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "clean": "hardhat clean",
     "compile": "hardhat compile",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "docgen": "hardhat docgen"
   },
   "author": "",
   "license": "ISC",
