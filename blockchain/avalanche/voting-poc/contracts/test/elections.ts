@@ -1,7 +1,7 @@
 import { expect, use } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import dayjs, { Dayjs } from "dayjs";
-import duration from "dayjs/plugin/duration";
+import duration, { Duration } from "dayjs/plugin/duration";
 import { ContractReceipt, Event } from "ethers";
 import { ethers } from "hardhat";
 import { Elections } from "../typechain";
@@ -133,8 +133,14 @@ describe("Elections contract", () => {
     return expect(contract.vote(electionId, 1)).to.be.rejectedWith(/started/);
   });
 
-  it("Should prohibit to vote after election end", () => {
-    throw new Error("Not implemented!");
+  it("Should prohibit to vote after election end", async () => {
+    const electionId = await contract
+      .createElection(election())
+      .then((r) => r.wait())
+      .then(getElectionId);
+    await advanceTime(dayjs.duration({ days: 3 }));
+
+    return expect(contract.vote(electionId, 1)).to.be.rejectedWith(/ended/);
   });
 
   it("Any user should be able to vote", async () => {
@@ -156,8 +162,23 @@ describe("Elections contract", () => {
     expect(second.votes).to.equal(1);
   });
 
-  it("Should prohibit to vote more then once", () => {
-    throw new Error("Not implemented!");
+  it("Should prohibit to vote more then once", async () => {
+    const candidateId = 1;
+    const electionId = await contract
+      .createElection(election())
+      .then((r) => r.wait())
+      .then(getElectionId);
+    const [, user] = await ethers.getSigners();
+    await startElection();
+
+    await contract
+      .connect(user)
+      .vote(electionId, candidateId)
+      .then((r) => r.wait());
+
+    return expect(
+      contract.connect(user).vote(electionId, candidateId)
+    ).to.be.rejectedWith(/already voted/);
   });
 
   function election(
@@ -203,9 +224,11 @@ describe("Elections contract", () => {
 
   async function startElection(): Promise<void> {
     const startElectionDuration = dayjs.duration({ days: 1, hours: 1 });
-    await ethers.provider.send("evm_increaseTime", [
-      startElectionDuration.asSeconds(),
-    ]);
-    currentDate = currentDate.add(startElectionDuration);
+    advanceTime(startElectionDuration);
+  }
+
+  async function advanceTime(duration: Duration): Promise<void> {
+    await ethers.provider.send("evm_increaseTime", [duration.asSeconds()]);
+    currentDate = currentDate.add(duration);
   }
 });
