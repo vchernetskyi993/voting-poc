@@ -40,10 +40,7 @@ export class ElectionsServerImpl implements ElectionsServer {
           ElectionId.fromPartial({ id: { data: Buffer.from(arrayify(id)) } })
         );
       })
-      .catch((e) => {
-        console.log(`Create election failed: ${getRevertReason(e)}`);
-        callback({ code: Status.UNKNOWN });
-      });
+      .catch(genericHandler("Create election", callback));
   }
 
   getElection(
@@ -54,22 +51,24 @@ export class ElectionsServerImpl implements ElectionsServer {
     Promise.all([
       contract.getElection(electionId),
       contract.getVotingResults(electionId),
-    ]).then(([[start, end, title, description, candidates], votes]) => {
-      const idToVotes = votes.reduce(
-        (result, candidateVotes) =>
-          result.set(candidateVotes.candidateId, candidateVotes.votes),
-        new Map()
-      );
-      callback(null, {
-        start,
-        end,
-        title,
-        description,
-        candidates: candidates.map((candidate, i) => {
-          return { name: candidate, votes: { data: idToVotes.get(i) } };
-        }),
-      });
-    });
+    ])
+      .then(([[start, end, title, description, candidates], votes]) => {
+        const idToVotes = votes.reduce(
+          (result, candidateVotes) =>
+            result.set(candidateVotes.candidateId, candidateVotes.votes),
+          new Map()
+        );
+        callback(null, {
+          start,
+          end,
+          title,
+          description,
+          candidates: candidates.map((candidate, i) => {
+            return { name: candidate, votes: { data: idToVotes.get(i) } };
+          }),
+        });
+      })
+      .catch(genericHandler("Get election", callback));
   }
 
   streamElections(call: ServerWritableStream<Empty, Election>): void {
@@ -87,9 +86,19 @@ function getEvent(receipt: ContractReceipt, type: string): Event {
   return receipt.events?.find((e) => e.event === type)!;
 }
 
-function getRevertReason(e: any): string {
+function genericHandler(
+  prefix: string,
+  callback: sendUnaryData<any>
+): (error: any) => void {
+  return (error: any): void => {
+    console.log(`${prefix} failed: ${getMessage(error)}`);
+    callback({ code: Status.UNKNOWN });
+  };
+}
+
+function getMessage(e: any): string {
   if (!e.error) {
     return e.message;
   }
-  return getRevertReason(e.error);
+  return getMessage(e.error);
 }
