@@ -105,11 +105,20 @@ describe("Elections contract", () => {
     expect(actualCandidateId).to.equal(candidateId);
   });
 
+  it("Should throw for negative election id", () => {
+    return expect(contract.vote(-1, 1)).to.be.rejected;
+  });
+
   it("Should throw for non-existent election", async () => {
     const lastElectionId = await contract.lastElectionId();
     return expect(contract.vote(lastElectionId.add(1), 1)).to.be.rejectedWith(
       /id invalid/
     );
+  });
+
+  it("Should throw for negative candidate id", async () => {
+    const lastElectionId = await contract.lastElectionId();
+    return expect(contract.vote(lastElectionId, -1)).to.be.rejected;
   });
 
   it("Should throw for non-existent candidate", async () => {

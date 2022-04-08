@@ -69,14 +69,11 @@ contract Elections is Ownable {
         @dev Emits 'Voted' event.
      */
     function vote(uint256 electionId, uint256 candidateId) external {
-        require(
-            electionId >= 0 && electionId <= elections.length,
-            "Election id invalid"
-        );
+        require(electionId <= elections.length, "Election id invalid");
         require(!voters[electionId][msg.sender], "User already voted");
         Election memory election = elections[electionId];
         require(
-            candidateId >= 0 && candidateId < election.candidates.length,
+            candidateId < election.candidates.length,
             "Candidate id invalid"
         );
         require(
