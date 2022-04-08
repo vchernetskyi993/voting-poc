@@ -17,6 +17,7 @@ module.exports = {
   },
   rules: {
     "node/no-missing-import": "off",
+    "node/no-callback-literal": "off",
     "import/no-unresolved": "error",
     "node/no-unsupported-features/es-syntax": [
       "error",

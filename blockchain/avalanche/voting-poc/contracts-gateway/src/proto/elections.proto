@@ -29,7 +29,7 @@ message uint256 {
 }
 
 message Candidate {
-    uint256 candidateId = 1;
+    string name = 1;
     uint256 votes = 2;
 }
 

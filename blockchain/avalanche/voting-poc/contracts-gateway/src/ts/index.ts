@@ -1,12 +1,10 @@
-import dotenv from "dotenv";
+import "./config";
 import { Server, ServerCredentials } from "@grpc/grpc-js";
-import { ElectionsService } from "../gen/elections";
-import { Elections } from "./elections";
-
-dotenv.config();
+import { ElectionsService } from "../gen/proto/elections";
+import { ElectionsServerImpl } from "./elections";
 
 const server = new Server();
-server.addService(ElectionsService, new Elections());
+server.addService(ElectionsService, new ElectionsServerImpl());
 server.bindAsync(
   `0.0.0.0:${process.env.SERVER_PORT}`,
   ServerCredentials.createInsecure(),

@@ -1,7 +1,7 @@
 import shelljs from "shelljs";
 
 const SRC_DIR = "src/proto";
-const OUT_DIR = "src/gen";
+const OUT_DIR = "src/gen/proto";
 const PROTOC_PATH = "node_modules/grpc-tools/bin/protoc";
 const PROTO_PLUGIN_PATH = "node_modules/.bin/protoc-gen-ts_proto";
 const PROTOC_OPTS = [
