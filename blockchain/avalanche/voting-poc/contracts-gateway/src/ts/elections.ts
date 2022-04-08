@@ -6,7 +6,6 @@ import {
 } from "@grpc/grpc-js";
 import { Empty } from "../gen/proto/google/protobuf/empty";
 import {
-  Candidate,
   Election,
   ElectionId,
   ElectionsServer,
