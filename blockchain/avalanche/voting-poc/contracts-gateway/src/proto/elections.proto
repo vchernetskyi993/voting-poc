@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package voting;
+
+import "google/protobuf/empty.proto";
+
+service Elections {
+    rpc CreateElection (NewElection) returns (ElectionId);
+
+    rpc GetElection (ElectionId) returns (Election);
+
+    rpc StreamElections (google.protobuf.Empty) returns (stream Election);
+}
+
+message NewElection {
+    uint32 start = 1;
+    uint32 end = 2;
+    string title = 3;
+    string description = 4;
+    repeated string candidates = 5;
+}
+
+message ElectionId {
+    uint256 id = 1;
+}
+
+message uint256 {
+    bytes data = 1;
+}
+
+message Candidate {
+    uint256 candidateId = 1;
+    uint256 votes = 2;
+}
+
+message Election {
+    uint256 id = 1;
+    uint32 start = 2;
+    uint32 end = 3;
+    string title = 4;
+    string description = 5;
+    repeated Candidate candidates = 6;
+}

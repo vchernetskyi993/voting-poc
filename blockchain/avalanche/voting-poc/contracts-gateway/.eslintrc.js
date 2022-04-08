@@ -5,7 +5,7 @@ module.exports = {
     mocha: true,
     node: true,
   },
-  plugins: ["@typescript-eslint"],
+  plugins: ["@typescript-eslint", "import"],
   extends: [
     "standard",
     "plugin:prettier/recommended",
@@ -16,10 +16,22 @@ module.exports = {
     ecmaVersion: 12,
   },
   rules: {
+    "node/no-missing-import": "off",
+    "import/no-unresolved": "error",
     "node/no-unsupported-features/es-syntax": [
       "error",
       { ignores: ["modules"] },
     ],
     "@typescript-eslint/explicit-function-return-type": ["error"],
+  },
+  settings: {
+    "import/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx"],
+    },
+    "import/resolver": {
+      typescript: {
+        project: "tsconfig.json",
+      },
+    },
   },
 };
