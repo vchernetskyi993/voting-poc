@@ -16,6 +16,7 @@ import { electionsContract } from "../src/ts/elections/contract";
 import net, { AddressInfo } from "net";
 import { arrayify } from "ethers/lib/utils";
 import { JsonRpcProvider } from "@ethersproject/providers";
+import { firstValueFrom, Observable, toArray } from "rxjs";
 
 dayjs.extend(duration);
 
@@ -35,7 +36,7 @@ describe("Elections API", () => {
   let contract: Elections;
   let client: ElectionsClient;
   let server: Server;
-  let currentDate: Dayjs;
+  let currentDate: Dayjs = dayjs();
 
   before(async () => {
     const evmUrl = await startEvm();
@@ -106,8 +107,30 @@ describe("Elections API", () => {
     });
   });
 
-  it("Should stream elections", () => {
-    throw Error("Not Implemented!");
+  it("Should stream elections", async () => {
+    const latestElectionId = await contract.lastElectionId();
+    const electionData = election();
+    await contract.createElection(electionData);
+    await contract.createElection(electionData);
+
+    const elections = await firstValueFrom(
+      new Observable((subscriber) => {
+        const stream = client.streamElections({});
+        stream.on("data", (election) => subscriber.next(election));
+        stream.on("end", () => subscriber.complete());
+        stream.on("error", (err) => subscriber.error(err));
+      }).pipe(toArray())
+    );
+
+    elections.slice(latestElectionId.toNumber()).forEach((election) => {
+      expect(election).to.have.property("start", electionData.start);
+      expect(election).to.have.property("end", electionData.end);
+      expect(election).to.have.property("title", electionData.title);
+      expect(election).to.have.property(
+        "description",
+        electionData.description
+      );
+    });
   });
 
   function election(
