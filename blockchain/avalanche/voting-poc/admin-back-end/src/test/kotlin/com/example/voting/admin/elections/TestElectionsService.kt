@@ -4,6 +4,7 @@ import com.google.protobuf.Empty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.drop
 import net.devh.boot.grpc.server.service.GrpcService
 import voting.ElectionsGrpcKt.ElectionsCoroutineImplBase
 import voting.ElectionsOuterClass.Election
@@ -37,8 +38,10 @@ class TestElectionsService : ElectionsCoroutineImplBase(Dispatchers.Default) {
     }
 
     override fun streamElections(request: uint256): Flow<Election> {
-        return elections.asFlow()
+        return elections.asFlow().drop(request.toInt())
     }
+
+    fun clear() = elections.clear()
 
     private fun candidate(inputName: String) = voting.candidate {
         name = inputName

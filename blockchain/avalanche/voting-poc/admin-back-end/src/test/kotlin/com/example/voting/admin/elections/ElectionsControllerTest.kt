@@ -12,6 +12,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -37,6 +38,11 @@ class ElectionsControllerTest @Autowired constructor(
     private val webClient: WebTestClient,
     private val testServer: TestElectionsService,
 ) {
+    @AfterEach
+    fun afterEach() {
+        testServer.clear()
+    }
+
     @Test
     fun `Should create election`() = runBlocking {
         // when
@@ -76,12 +82,117 @@ class ElectionsControllerTest @Autowired constructor(
 
     @Test
     fun `Should get first page by default`() {
-        TODO("Test")
+        // given
+        repeat(13) { runBlocking { testServer.createElection(newElectionProto()) } }
+
+        // when
+        val responseBytes = webClient.get()
+            .uri("/elections")
+            .exchange()
+            .expectStatus().isOk
+            .returnResult<JsonObject>()
+            .responseBodyContent!!
+
+        // then
+        assertEquals(
+            savedPage(
+                elementsCount = 13,
+                pageCount = 2
+            ),
+            Json.decodeFromString<JsonObject>(String(responseBytes))
+        )
     }
 
     @Test
     fun `Should get requested page`() {
-        TODO("Test")
+        // given
+        repeat(33) { runBlocking { testServer.createElection(newElectionProto()) } }
+
+        // when
+        val responseBytes = webClient.get()
+            .uri {
+                it.path("/elections")
+                    .queryParam("page", 2)
+                    .queryParam("pageSize", 15)
+                    .build()
+            }
+            .exchange()
+            .expectStatus().isOk
+            .returnResult<JsonObject>()
+            .responseBodyContent!!
+
+        // then
+        assertEquals(
+            savedPage(
+                pageNumber = 2,
+                pageSize = 15,
+                elementsCount = 33,
+                pageCount = 3,
+                fromId = 15,
+                toId = 29,
+            ),
+            Json.decodeFromString<JsonObject>(String(responseBytes))
+        )
+    }
+
+    @Test
+    fun `Should get incomplete last page`() {
+        // given
+        repeat(18) { runBlocking { testServer.createElection(newElectionProto()) } }
+
+        // when
+        val responseBytes = webClient.get()
+            .uri {
+                it.path("/elections")
+                    .queryParam("page", 2)
+                    .build()
+            }
+            .exchange()
+            .expectStatus().isOk
+            .returnResult<JsonObject>()
+            .responseBodyContent!!
+
+        // then
+        assertEquals(
+            savedPage(
+                pageNumber = 2,
+                pageSize = 8,
+                elementsCount = 18,
+                pageCount = 2,
+                fromId = 10,
+                toId = 17,
+            ),
+            Json.decodeFromString<JsonObject>(String(responseBytes))
+        )
+    }
+
+    @Test
+    fun `Should get incomplete first page`() {
+        // given
+        repeat(12) { runBlocking { testServer.createElection(newElectionProto()) } }
+
+        // when
+        val responseBytes = webClient.get()
+            .uri {
+                it.path("/elections")
+                    .queryParam("pageSize", 13)
+                    .build()
+            }
+            .exchange()
+            .expectStatus().isOk
+            .returnResult<JsonObject>()
+            .responseBodyContent!!
+
+        // then
+        assertEquals(
+            savedPage(
+                pageSize = 12,
+                elementsCount = 12,
+                pageCount = 1,
+                toId = 11,
+            ),
+            Json.decodeFromString<JsonObject>(String(responseBytes))
+        )
     }
 
     private fun newElectionJson() = buildJsonObject {
@@ -133,5 +244,24 @@ class ElectionsControllerTest @Autowired constructor(
                 candidate { name = "Second"; votes = 0.toUint256() },
             )
         )
+    }
+
+    private fun savedPage(
+        elementsCount: Int,
+        pageCount: Int,
+        pageNumber: Int = 1,
+        pageSize: Int = 10,
+        fromId: Int = 0,
+        toId: Int = 9,
+    ) = buildJsonObject {
+        put("pageNumber", pageNumber)
+        put("pageSize", pageSize)
+        put("elementsCount", elementsCount)
+        put("pageCount", pageCount)
+        putJsonArray("values") {
+            for (i in fromId..toId) {
+                add(savedElectionJson(i))
+            }
+        }
     }
 }
