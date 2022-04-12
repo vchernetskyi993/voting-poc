@@ -39,6 +39,8 @@ dependencies {
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.projectreactor:reactor-test")
+	testImplementation("net.devh:grpc-server-spring-boot-starter:2.13.1.RELEASE")
+	testImplementation("io.grpc:grpc-testing:$grpcVersion")
 }
 
 tasks.withType<KotlinCompile> {
