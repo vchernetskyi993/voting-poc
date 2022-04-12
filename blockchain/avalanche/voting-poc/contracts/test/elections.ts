@@ -28,7 +28,7 @@ describe("Elections contract", () => {
   });
 
   it("Should increment election id", async () => {
-    const electionId = await contract.lastElectionId();
+    const electionId = await contract.electionsCount();
 
     return Promise.all([
       expect(
@@ -110,14 +110,14 @@ describe("Elections contract", () => {
   });
 
   it("Should throw for non-existent election", async () => {
-    const lastElectionId = await contract.lastElectionId();
+    const lastElectionId = await contract.electionsCount();
     return expect(contract.vote(lastElectionId.add(1), 1)).to.be.rejectedWith(
       /id invalid/
     );
   });
 
   it("Should throw for negative candidate id", async () => {
-    const lastElectionId = await contract.lastElectionId();
+    const lastElectionId = await contract.electionsCount();
     return expect(contract.vote(lastElectionId, -1)).to.be.rejected;
   });
 

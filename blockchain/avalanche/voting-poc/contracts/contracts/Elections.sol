@@ -23,11 +23,11 @@ contract Elections is Ownable {
     }
 
     /**
-        @dev These id is started from 0 and incremented by one. 
+        @dev Count is started from 0 and incremented by one. It is next election id.
             So, it should be used to get all elections or election ranges (e.g. for pagination).
         @return Id of the previously created election.
      */
-    uint256 public lastElectionId;
+    uint256 public electionsCount;
     Election[] private elections;
     mapping(uint256 => mapping(uint256 => uint256)) private results;
     mapping(uint256 => mapping(address => bool)) private voters;
@@ -48,7 +48,7 @@ contract Elections is Ownable {
         );
         require(election.start < election.end, "Start should be before end");
         elections.push(election);
-        emit ElectionCreated(lastElectionId++, election);
+        emit ElectionCreated(electionsCount++, election);
     }
 
     /**
