@@ -1,20 +1,17 @@
 import { BigNumber, ContractReceipt, ethers, Event, Wallet } from "ethers";
 import { Elections__factory } from "../../gen/contracts";
-import { Observable } from "rxjs";
-import {
-  Election,
-  ElectionId,
-  NewElection,
-  uint256,
-} from "../../gen/proto/elections";
+import { concatMap, from, generate, map, Observable } from "rxjs";
+import { Election, NewElection, uint256 } from "../../gen/proto/elections";
 import { arrayify } from "ethers/lib/utils";
 
 export interface ElectionsContractWrapper {
-  createElection(election: NewElection): Promise<ElectionId>;
+  createElection(election: NewElection): Promise<uint256>;
 
-  getElection(electionId: ElectionId): Promise<Election>;
+  getElection(electionId: uint256): Promise<Election>;
 
-  streamElections(): Observable<Election>;
+  electionsCount(): Promise<uint256>;
+
+  streamElections(startFrom: uint256): Observable<Election>;
 }
 
 export function electionsContract(): ElectionsContractWrapper {
@@ -28,16 +25,16 @@ export function electionsContract(): ElectionsContractWrapper {
   );
 
   return {
-    createElection(election: NewElection): Promise<ElectionId> {
+    createElection(election: NewElection): Promise<uint256> {
       return contract
         .createElection(election)
         .then((t) => t.wait())
         .then(getElectionId)
-        .then((id) => ElectionId.fromPartial({ id: toUint256(id) }));
+        .then(toUint256);
     },
 
-    getElection(electionId: ElectionId): Promise<Election> {
-      const parsedId = fromUint256(electionId.id!);
+    getElection(electionId: uint256): Promise<Election> {
+      const parsedId = fromUint256(electionId);
       return Promise.all([
         contract.getElection(parsedId),
         contract.getVotingResults(parsedId),
@@ -66,12 +63,23 @@ export function electionsContract(): ElectionsContractWrapper {
       });
     },
 
-    streamElections(): Observable<Election> {
-      return new Observable((subscriber) => {
-        subscriber.next(Election.fromPartial({ title: "My First Election" }));
-        subscriber.next(Election.fromPartial({ title: "My Second Election" }));
-        subscriber.complete();
-      });
+    electionsCount(): Promise<uint256> {
+      return contract.electionsCount().then(toUint256);
+    },
+
+    streamElections(startFrom: uint256): Observable<Election> {
+      return from(contract.electionsCount()).pipe(
+        concatMap((count) =>
+          generate({
+            initialState: fromUint256(startFrom),
+            condition: (i) => i.lt(count),
+            iterate: (i) => i.add(1),
+          })
+        ),
+        map(toUint256),
+        map(this.getElection),
+        concatMap((e) => from(e))
+      );
     },
   };
 }

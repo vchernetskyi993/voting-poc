@@ -6,9 +6,9 @@ import {
 import { Empty } from "../../gen/proto/google/protobuf/empty";
 import {
   Election,
-  ElectionId,
   ElectionsServer,
   NewElection,
+  uint256,
 } from "../../gen/proto/elections";
 import { Status } from "@grpc/grpc-js/build/src/constants";
 import { ElectionsContractWrapper } from "./contract";
@@ -18,8 +18,8 @@ export function electionsServer(
 ): ElectionsServer {
   return {
     createElection(
-      call: ServerUnaryCall<NewElection, ElectionId>,
-      callback: sendUnaryData<ElectionId>
+      call: ServerUnaryCall<NewElection, uint256>,
+      callback: sendUnaryData<uint256>
     ): void {
       contract
         .createElection(call.request)
@@ -28,7 +28,7 @@ export function electionsServer(
     },
 
     getElection(
-      call: ServerUnaryCall<ElectionId, Election>,
+      call: ServerUnaryCall<uint256, Election>,
       callback: sendUnaryData<Election>
     ): void {
       contract
@@ -37,11 +37,22 @@ export function electionsServer(
         .catch(genericHandler("Get election", callback));
     },
 
-    streamElections(call: ServerWritableStream<Empty, Election>): void {
+    electionsCount(
+      call: ServerUnaryCall<Empty, uint256>,
+      callback: sendUnaryData<uint256>
+    ): void {
       contract
-        .streamElections()
+        .electionsCount()
+        .then((n) => callback(null, n))
+        .catch(genericHandler("Elections count", callback));
+    },
+
+    streamElections(call: ServerWritableStream<uint256, Election>): void {
+      contract
+        .streamElections(call.request)
         .forEach((election) => call.write(election))
-        .finally(() => call.end());
+        .finally(() => call.end())
+        .catch((err) => console.error(`Stream elections failed: ${err}`));
     },
   };
 }
@@ -51,7 +62,7 @@ function genericHandler(
   callback: sendUnaryData<any>
 ): (error: any) => void {
   return (error: any): void => {
-    console.log(`${prefix} failed: ${getMessage(error)}`);
+    console.error(`${prefix} failed: ${getMessage(error)}`);
     callback({ code: Status.UNKNOWN });
   };
 }

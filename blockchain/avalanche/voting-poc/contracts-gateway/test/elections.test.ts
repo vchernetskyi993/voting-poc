@@ -1,5 +1,5 @@
 import { credentials, Server } from "@grpc/grpc-js";
-import { expect } from "chai";
+import { assert, expect } from "chai";
 import dayjs, { Dayjs } from "dayjs";
 import duration from "dayjs/plugin/duration";
 import { BigNumber, ContractReceipt, ethers, Event, Wallet } from "ethers";
@@ -16,7 +16,6 @@ import { electionsContract } from "../src/ts/elections/contract";
 import net, { AddressInfo } from "net";
 import { arrayify } from "ethers/lib/utils";
 import { JsonRpcProvider } from "@ethersproject/providers";
-import { firstValueFrom, Observable, toArray } from "rxjs";
 
 dayjs.extend(duration);
 
@@ -62,8 +61,9 @@ describe("Elections API", () => {
       client.createElection(electionData, (err, id) => {
         if (err) {
           reject(err);
+          return;
         }
-        resolve(BigNumber.from(id.id!.data));
+        resolve(BigNumber.from(id.data));
       })
     );
 
@@ -82,7 +82,7 @@ describe("Elections API", () => {
     const idUint256 = toUint256(electionId);
 
     const result: ElectionProto = await new Promise((resolve, reject) =>
-      client.getElection({ id: idUint256 }, (err, res) => {
+      client.getElection(idUint256, (err, res) => {
         if (err) {
           reject(err);
           return;
@@ -107,22 +107,40 @@ describe("Elections API", () => {
     });
   });
 
+  it("Should return correct count", async () => {
+    await contract.createElection(election());
+    await contract.createElection(election());
+
+    const expected = await contract.electionsCount();
+    const actual: BigNumber = await new Promise((resolve, reject) =>
+      client.electionsCount({}, (err, res) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(BigNumber.from(res.data));
+      })
+    );
+
+    assert(actual.eq(expected), `${actual} should be ${expected}`);
+  });
+
   it("Should stream elections", async () => {
-    const latestElectionId = await contract.lastElectionId();
+    const count = await contract.electionsCount();
     const electionData = election();
     await contract.createElection(electionData);
     await contract.createElection(electionData);
 
-    const elections = await firstValueFrom(
-      new Observable((subscriber) => {
-        const stream = client.streamElections({});
-        stream.on("data", (election) => subscriber.next(election));
-        stream.on("end", () => subscriber.complete());
-        stream.on("error", (err) => subscriber.error(err));
-      }).pipe(toArray())
-    );
+    const elections = await new Promise<Election[]>((resolve, reject) => {
+      const result: Election[] = [];
+      const stream = client.streamElections(toUint256(count));
+      stream.on("data", (election) => result.push(election));
+      stream.on("end", () => resolve(result));
+      stream.on("error", (err) => reject(err));
+    });
 
-    elections.slice(latestElectionId.toNumber()).forEach((election) => {
+    expect(elections).to.have.lengthOf(2);
+    elections.forEach((election) => {
       expect(election).to.have.property("start", electionData.start);
       expect(election).to.have.property("end", electionData.end);
       expect(election).to.have.property("title", electionData.title);

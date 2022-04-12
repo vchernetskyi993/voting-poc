@@ -5,11 +5,13 @@ package voting;
 import "google/protobuf/empty.proto";
 
 service Elections {
-    rpc CreateElection (NewElection) returns (ElectionId);
+    rpc CreateElection (NewElection) returns (uint256);
 
-    rpc GetElection (ElectionId) returns (Election);
+    rpc GetElection (uint256) returns (Election);
 
-    rpc StreamElections (google.protobuf.Empty) returns (stream Election);
+    rpc ElectionsCount (google.protobuf.Empty) returns (uint256);
+
+    rpc StreamElections (uint256) returns (stream Election);
 }
 
 message NewElection {
@@ -18,10 +20,6 @@ message NewElection {
     string title = 3;
     string description = 4;
     repeated string candidates = 5;
-}
-
-message ElectionId {
-    uint256 id = 1;
 }
 
 message uint256 {
