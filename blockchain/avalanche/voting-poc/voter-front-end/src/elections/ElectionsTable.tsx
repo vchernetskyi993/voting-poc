@@ -14,11 +14,11 @@ import { Elections } from "../gen/contracts";
 import ElectionRow from "./ElectionRow";
 
 function ElectionsTable({
-  toggleVotingModal,
+  openVotingModal,
   web3,
   account,
 }: {
-  toggleVotingModal: (open: boolean) => void;
+  openVotingModal: (candidates: string[]) => void;
   web3: Web3 | undefined;
   account: string | undefined;
 }) {
@@ -64,7 +64,7 @@ function ElectionsTable({
               key={electionId}
               electionId={electionId}
               contract={contract!}
-              toggleVotingModal={toggleVotingModal}
+              openVotingModal={openVotingModal}
             />
           ))}
         </TableBody>

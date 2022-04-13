@@ -6,11 +6,11 @@ import { Elections } from "../gen/contracts";
 function ElectionRow({
   electionId,
   contract,
-  toggleVotingModal,
+  openVotingModal,
 }: {
   electionId: number;
   contract: Elections;
-  toggleVotingModal: (open: boolean) => void;
+  openVotingModal: (candidates: string[]) => void;
 }) {
   const [election, setElection] = React.useState<ElectionData>();
   if (!election) {
@@ -29,11 +29,18 @@ function ElectionRow({
         {/* TODO: subscribe to Voted events and update votes */}
         {election?.candidates.map(({ name, votes }) => (
           <Typography key={name}>{`${name} (${votes})`} </Typography>
-        ))}
+        )) || []}
       </TableCell>
       <TableCell>
         {/* TODO: disable if already voted */}
-        <Button onClick={() => toggleVotingModal(true)} variant="outlined">
+        <Button
+          onClick={() =>
+            openVotingModal(
+              election?.candidates.map(({ name }) => name) || []
+            )
+          }
+          variant="outlined"
+        >
           Vote
         </Button>
       </TableCell>

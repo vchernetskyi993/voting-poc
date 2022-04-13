@@ -7,18 +7,37 @@ import {
   Radio,
   RadioGroup,
 } from "@mui/material";
+import React from "react";
 
 function VotingModal({
   open,
-  toggleVotingModal,
+  closeVotingModal,
+  candidates,
 }: {
   open: boolean;
-  toggleVotingModal: (open: boolean) => void;
+  closeVotingModal: () => void;
+  candidates: string[];
 }) {
+  const [choice, setChoice] = React.useState<string>("");
+
+  const handleRadioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setChoice((event.target as HTMLInputElement).value);
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    // TODO: call vote function
+    close();
+  };
+
+  const close = () => {
+    setChoice("");
+    closeVotingModal();
+  };
+
   return (
     <Modal
       open={open}
-      onClose={() => toggleVotingModal(false)}
+      onClose={close}
       aria-labelledby="modal-modal-title"
       aria-describedby="modal-modal-description"
     >
@@ -35,16 +54,19 @@ function VotingModal({
           p: 4,
         }}
       >
-        <form onSubmit={() => toggleVotingModal(false)}>
+        <form onSubmit={handleSubmit}>
           <FormControl>
-            <RadioGroup>
-              {/* TODO: populate from actual candidates for election */}
-              <FormControlLabel value="0" control={<Radio />} label="First" />
-              <FormControlLabel value="1" control={<Radio />} label="Second" />
+            <RadioGroup value={choice} onChange={handleRadioChange}>
+              {candidates.map((name, i) => (
+                <FormControlLabel
+                  key={i}
+                  value={i}
+                  control={<Radio />}
+                  label={name}
+                />
+              ))}
             </RadioGroup>
-            {/* TODO: disable if no option selected */}
-            {/* TODO: call vote function */}
-            <Button type="submit" variant="outlined">
+            <Button type="submit" variant="outlined" disabled={!choice}>
               Vote
             </Button>
           </FormControl>
