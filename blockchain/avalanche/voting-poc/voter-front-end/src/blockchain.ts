@@ -2,6 +2,7 @@ import Web3 from "web3";
 import { provider } from "web3-core";
 
 async function getWeb3(): Promise<Web3> {
+  console.log("Connecting to web3...");
   return new Web3(await getProvider());
 }
 
@@ -23,6 +24,7 @@ async function getProvider(): Promise<provider> {
 }
 
 async function getAccounts(web3: Web3): Promise<string[]> {
+  console.log("Retrieving accounts...");
   return await web3.eth.getAccounts();
 }
 

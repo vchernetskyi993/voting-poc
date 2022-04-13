@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
+    "@fontsource/roboto": "^4.5.5",
     "@mui/material": "^5.6.1",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.0.1",
@@ -30,8 +31,10 @@
     "web3": "^1.7.3"
   },
   "scripts": {
+    "generate:contracts": "ts-node -O '{\"module\": \"commonjs\"}' scripts/build-contracts.ts",
+    "prestart": "npm run generate:contracts",
     "start": "react-app-rewired start",
-    "build": "react-app-rewired build",
+    "build": "npm run prestart && react-app-rewired build",
     "test": "react-app-rewired test",
     "eject": "react-app-rewired eject"
   },
@@ -52,5 +55,12 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@typechain/web3-v1": "^6.0.0",
+    "@types/shelljs": "^0.8.11",
+    "shelljs": "^0.8.5",
+    "ts-node": "^10.7.0",
+    "typechain": "^8.0.0"
   }
 }

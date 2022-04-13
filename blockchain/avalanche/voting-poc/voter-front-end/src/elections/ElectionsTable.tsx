@@ -1,5 +1,4 @@
 import {
-  Button,
   Table,
   TableBody,
   TableCell,
@@ -8,67 +7,70 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import React from "react";
+import Web3 from "web3";
+import { getElectionsContract } from "./contract";
+import { Elections } from "../gen/contracts";
+import ElectionRow from "./ElectionRow";
 
-function Elections({
+function ElectionsTable({
   toggleVotingModal,
+  web3,
+  account,
 }: {
   toggleVotingModal: (open: boolean) => void;
+  web3: Web3 | undefined;
+  account: string | undefined;
 }) {
+  const [contract, setContract] = React.useState<Elections>();
+  const [electionIds, setElectionIds] = React.useState<number[]>([]);
+  if (web3 && account) {
+    if (!contract) {
+      setContract(getElectionsContract(web3, account));
+    }
+    if (contract && electionIds.length === 0) {
+      contract.methods
+        .electionsCount()
+        .call()
+        .then((count) => setElectionIds(Array.from(Array(+count).keys())));
+    }
+  }
   return (
     <TableContainer>
       <Table>
+        <colgroup>
+          <col width="20%" />
+          <col width="35%" />
+          <col width="35%" />
+          <col width="10%" />
+        </colgroup>
         <TableHead>
           <TableRow>
-            <TableCell>Election ID</TableCell>
-            <TableCell>Election Name</TableCell>
-            <TableCell>Candidates</TableCell>
+            <TableCell>
+              <Typography variant="h5">ID</Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="h5">Description</Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="h5">Results</Typography>
+            </TableCell>
             <TableCell></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {/* TODO: populate from actual elections */}
-          <TableRow>
-            <TableCell>0</TableCell>
-            <TableCell>
-              <Typography>Some election</Typography>
-              <Typography>Some description</Typography>
-            </TableCell>
-            <TableCell>
-              {/* TODO: subscribe to Voted events and update votes */}
-              <Typography>First (7)</Typography>
-              <Typography>Second (3)</Typography>
-            </TableCell>
-            <TableCell>
-              {/* TODO: disable if already voted */}
-              <Button
-                onClick={() => toggleVotingModal(true)}
-                variant="outlined"
-              >
-                Vote
-              </Button>
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell>0</TableCell>
-            <TableCell>
-              <Typography>Some election</Typography>
-              <Typography>Some description</Typography>
-            </TableCell>
-            <TableCell>
-              <Typography>First (7)</Typography>
-              <Typography>Second (3)</Typography>
-              <Typography>Third (2)</Typography>
-            </TableCell>
-            <TableCell>
-              <Button disabled variant="outlined">
-                Vote
-              </Button>
-            </TableCell>
-          </TableRow>
+          {electionIds.map((electionId) => (
+            <ElectionRow
+              key={electionId}
+              electionId={electionId}
+              contract={contract!}
+              toggleVotingModal={toggleVotingModal}
+            />
+          ))}
         </TableBody>
       </Table>
     </TableContainer>
   );
 }
 
-export default Elections;
+export default ElectionsTable;
