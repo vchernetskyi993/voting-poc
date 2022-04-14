@@ -44,6 +44,12 @@ function ElectionRow({
         )) || []}
       </TableCell>
       <TableCell>
+        {/* TODO: disable button if:
+            * election hasn't started 
+            * election has ended
+            * user already voted
+            Add corresponding messages.
+         */}
         <Button
           onClick={() =>
             openVotingModal(
