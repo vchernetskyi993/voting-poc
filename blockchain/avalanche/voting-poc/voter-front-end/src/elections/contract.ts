@@ -13,7 +13,7 @@ export function getElectionsContract(web3: Web3, account: string): Elections {
 
 type CandidateData = {
   name: string;
-  votes: BigInt;
+  votes: bigint;
 };
 
 export type ElectionData = {
@@ -32,9 +32,9 @@ export function getElection(
     contract.methods.getElection(electionId).call(),
     contract.methods.getVotingResults(electionId).call(),
   ]).then(([[start, end, title, description, candidates], votes]) => {
-    const idToVotes = votes.reduce(
+    const idToVotes: Map<number, bigint> = votes.reduce(
       (res, [id, count]) => res.set(+id, BigInt(count)),
-      new Map<number, BigInt>()
+      new Map<number, bigint>()
     );
     return {
       start: +start,

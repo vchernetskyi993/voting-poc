@@ -6,6 +6,11 @@ async function getWeb3(): Promise<Web3> {
   return new Web3(await getProvider());
 }
 
+function getWsWeb3(): Web3 {
+  console.log("Connecting to websocket web3...");
+  return new Web3(process.env.REACT_APP_WEB_SOCKET_URL!);
+}
+
 async function getProvider(): Promise<provider> {
   if (window.ethereum) {
     const web3 = window.ethereum;
@@ -28,4 +33,4 @@ async function getAccounts(web3: Web3): Promise<string[]> {
   return await web3.eth.getAccounts();
 }
 
-export { getAccounts, getWeb3 };
+export { getAccounts, getWeb3, getWsWeb3 };

@@ -5,6 +5,7 @@ import { getAccounts, getWeb3 } from "./blockchain";
 import ElectionsTable from "./elections/ElectionsTable";
 import Title from "./elections/Title";
 import VotingModal from "./elections/VotingModal";
+import { Elections } from "./gen/contracts";
 
 function App() {
   const [web3, setWeb3] = React.useState<Web3>();
@@ -19,9 +20,17 @@ function App() {
   }
   const [open, setOpen] = React.useState(false);
   const [candidates, setCandidates] = React.useState<string[]>([]);
-  const openVotingModal = (candidates: string[]) => {
+  const [contract, setContract] = React.useState<Elections>();
+  const [electionId, setElectionId] = React.useState<number>();
+  const openVotingModal = (
+    candidates: string[],
+    contract: Elections,
+    electionId: number
+  ) => {
     setOpen(true);
     setCandidates(candidates);
+    setContract(contract);
+    setElectionId(electionId);
   };
   const closeVotingModal = () => {
     setOpen(false);
@@ -40,6 +49,8 @@ function App() {
         open={open}
         closeVotingModal={closeVotingModal}
         candidates={candidates}
+        contract={contract!}
+        electionId={electionId!}
       />
     </Box>
   );

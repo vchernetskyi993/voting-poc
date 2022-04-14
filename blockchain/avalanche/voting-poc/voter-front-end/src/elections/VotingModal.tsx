@@ -8,15 +8,20 @@ import {
   RadioGroup,
 } from "@mui/material";
 import React from "react";
+import { Elections } from "../gen/contracts";
 
 function VotingModal({
   open,
   closeVotingModal,
   candidates,
+  contract,
+  electionId,
 }: {
   open: boolean;
   closeVotingModal: () => void;
   candidates: string[];
+  contract: Elections;
+  electionId: number;
 }) {
   const [choice, setChoice] = React.useState<string>("");
 
@@ -25,7 +30,8 @@ function VotingModal({
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    // TODO: call vote function
+    event.preventDefault();
+    contract.methods.vote(electionId, choice).send();
     close();
   };
 
