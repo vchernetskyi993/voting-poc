@@ -14,12 +14,15 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import fs from "fs/promises";
 import path from "path";
+import dayjs from "dayjs";
+import { BN } from "bn.js";
+import logger from "mocha-logger";
 const { Program, AnchorProvider } = anchor;
 
 chai.should();
 chai.use(chaiAsPromised);
 
-describe("voting", () => {
+describe("Voting Test Suite", () => {
   anchor.setProvider(AnchorProvider.env());
   const connection = anchor.getProvider().connection;
 
@@ -31,77 +34,133 @@ describe("voting", () => {
   const systemProgram = SystemProgram.programId;
 
   before(async () => {
-    owner = await ownerAccount();
-    console.log(`Owner: ${owner.publicKey}`);
-    await airdrop(owner.publicKey);
+    owner = await account("owner");
+    logger.pending(`Owner: ${owner.publicKey}`);
+    await fund(owner.publicKey);
     await initialize();
   });
 
-  it("Should register organization", async () => {
-    // given
-    const organization = Keypair.generate();
-    console.log(`Organization: ${organization.publicKey}`);
-    const organizationData = findPda(
-      sha256.array(`organization_data_${organization.publicKey}`)
-    );
-    console.log(`Organization Data: ${organizationData}`);
+  describe("Register Organization Tests", () => {
+    it("Should register organization", async () => {
+      // given
+      const organization = Keypair.generate().publicKey;
+      logger.pending(`Organization: ${organization}`);
+      const organizationData = findPda(
+        sha256.array(`organization_data_${organization}`)
+      );
+      logger.pending(`Organization Data: ${organizationData}`);
 
-    // when
-    const tx = await program.methods
-      .registerOrganization(organization.publicKey)
-      .accounts({
-        owner: owner.publicKey,
-        mainData,
-        systemProgram,
+      // when
+      await registerOrganization(organization, organizationData);
+
+      // then
+      const savedData = await program.account.organizationData.fetch(
+        organizationData
+      );
+      expect(savedData.electionsCount.toNumber()).to.equal(0);
+    });
+
+    it("Should forbid non-owner to register organizations", async () => {
+      // given
+      const organization = Keypair.generate();
+      logger.pending(`Organization: ${organization.publicKey}`);
+      await fund(organization.publicKey);
+      const organizationData = findPda(
+        sha256.array(`organization_data_${organization.publicKey}`)
+      );
+      logger.pending(`Organization Data: ${organizationData}`);
+
+      // when+then
+      return registerOrganization(
+        organization.publicKey,
         organizationData,
-      })
-      .signers([owner])
-      .rpc();
-    console.log(`Register transaction: ${tx}`);
-
-    // then
-    const savedData = await program.account.organizationData.fetch(
-      organizationData
-    );
-    expect(savedData.electionsCount.toNumber()).to.equal(0);
+        organization
+      ).should.be.rejectedWith(/RequireKeysEqViolated/);
+    });
   });
 
-  it("Should forbid non-owner to register organizations", async () => {
-    // given
-    const organization = Keypair.generate();
-    console.log(`Organization: ${organization.publicKey}`);
-    await airdrop(organization.publicKey);
-    const organizationData = findPda(
-      sha256.array(`organization_data_${organization.publicKey}`)
-    );
-    console.log(`Organization Data: ${organizationData}`);
+  describe("Create Election Tests", () => {
+    let organization;
+    let organizationData;
 
-    // when+then
-    return program.methods
-      .registerOrganization(organization.publicKey)
-      .accounts({
-        owner: organization.publicKey,
-        mainData,
-        systemProgram,
-        organizationData,
-      })
-      .signers([organization])
-      .rpc()
-      .should.be.rejectedWith(/RequireKeysEqViolated/);
+    before(async () => {
+      organization = await account("organization");
+      logger.pending(`Organization: ${organization.publicKey}`);
+      await fund(organization.publicKey);
+      organizationData = findPda(
+        sha256.array(`organization_data_${organization.publicKey}`)
+      );
+      logger.pending(`Organization Data: ${organizationData}`);
+      const registered = await isRegistered(organizationData);
+      if (!registered) {
+        logger.pending(`Registering ${organizationData}`);
+        await registerOrganization(organization.publicKey, organizationData);
+      }
+    });
+
+    it("Should create election", async () => {
+      // given
+      const electionId = await program.account.organizationData
+        .fetch(organizationData)
+        .then((data) => data.electionsCount);
+      logger.pending();
+      const electionData = findPda(sha256.array(`election_data_${electionId}`));
+      const input = {
+        start: new BN(dayjs().add(1, "day").unix()),
+        end: new BN(dayjs().add(3, "day").unix()),
+        title: "Our Election",
+        description: "Our really important election",
+        candidates: ["First One", "Second One"],
+      };
+
+      // when
+      await program.methods
+        .createElection(input)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          systemProgram,
+        })
+        .signers([organization])
+        .rpc();
+
+      // then
+      const electionsCount = await program.account.organizationData
+        .fetch(organizationData)
+        .then((data) => data.electionsCount);
+      expect(electionsCount.toNumber()).to.equal(electionId.toNumber() + 1);
+      const storedElection = await program.account.electionData.fetch(
+        electionData
+      );
+      expect(storedElection).to.equal(input);
+    });
+
+    it("Should not create election for unregistered organization", async () => {});
+
+    it("Should validate more than 2 candidates", async () => {});
+
+    it("Should validate start date", async () => {});
+
+    it("Should validate end date", async () => {});
+
+    it("Should require exact payment for election creation", async () => {
+      // TODO: can we test this in Solana?
+    });
   });
 
   xit("Playground", () => {
     // const firstPda = findPda("organization_data_1");
-    // console.log(`First PDA: ${firstPda}`);
+    // logger.pending(`First PDA: ${firstPda}`);
     // const secondPda = findPda("organization_data_2");
-    // console.log(`Second PDA: ${secondPda}`);
+    // logger.pending(`Second PDA: ${secondPda}`);
     // expect(firstPda.toBase58()).to.not.equal(secondPda.toBase58());
 
     const key = Keypair.generate().publicKey;
     const hash = sha256.array(`organization_data_${key}`);
-    console.log(`Random PDA: ${findPda(hash)}`);
+    logger.pending(`Random PDA: ${findPda(hash)}`);
 
-    console.log(`Hash: ${sha256.array("organization_data")}`);
+    logger.pending(`Hash: ${sha256.array("organization_data")}`);
   });
 
   function findPda(seed: number[] | string): PublicKey {
@@ -109,15 +168,20 @@ describe("voting", () => {
   }
 
   // TODO: check if needed for local env setup
-  async function airdrop(address: PublicKey): Promise<void> {
-    const txa = await connection.requestAirdrop(address, 2 * LAMPORTS_PER_SOL);
-    console.log(`Airdrop 2 SOL to ${address}: ${txa}`);
+  async function fund(address: PublicKey): Promise<void> {
+    const expectedBalance = 2 * LAMPORTS_PER_SOL;
+    const balance = await connection.getBalance(address);
+    if (balance > expectedBalance) {
+      return;
+    }
+    const txa = await connection.requestAirdrop(address, expectedBalance);
+    logger.pending(`Airdrop 2 SOL to ${address}: ${txa}`);
     const latestBlockHash = await connection.getLatestBlockhash();
     await connection.confirmTransaction({
       signature: txa,
       ...latestBlockHash,
     });
-    console.log("Waiting for 10 seconds after airdrop...");
+    logger.pending("Waiting for 10 seconds after airdrop...");
     await wait(10000);
   }
 
@@ -125,17 +189,17 @@ describe("voting", () => {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
 
-  function ownerAccount(): Promise<Keypair> {
-    const ownerKeypairFile = "target/test/owner-keypair.json";
-    return fs.stat(ownerKeypairFile).then(
-      (stats) => {
-        return fs.readFile(ownerKeypairFile).then(Keypair.fromSecretKey);
+  function account(name: string): Promise<Keypair> {
+    const keypairFile = `target/test/${name}-keypair.json`;
+    return fs.stat(keypairFile).then(
+      (_stats) => {
+        return fs.readFile(keypairFile).then(Keypair.fromSecretKey);
       },
-      (err) => {
+      (_err) => {
         const keypair = Keypair.generate();
         return fs
-          .mkdir(path.dirname(ownerKeypairFile), { recursive: true })
-          .then(() => fs.writeFile(ownerKeypairFile, keypair.secretKey))
+          .mkdir(path.dirname(keypairFile), { recursive: true })
+          .then(() => fs.writeFile(keypairFile, keypair.secretKey))
           .then(() => keypair);
       }
     );
@@ -144,6 +208,7 @@ describe("voting", () => {
   async function initialize(): Promise<void> {
     const initialized = await isInitialized();
     if (!initialized) {
+      logger.pending(`Initializing ${mainData}`);
       await program.methods
         .initialize()
         .accounts({
@@ -159,6 +224,30 @@ describe("voting", () => {
   function isInitialized(): Promise<boolean> {
     return program.account.mainData
       .fetchNullable(mainData)
+      .then((data) => !!data);
+  }
+
+  function registerOrganization(
+    organization: PublicKey,
+    organizationData: PublicKey,
+    programOwner: Keypair = owner
+  ): Promise<void> {
+    return program.methods
+      .registerOrganization(organization)
+      .accounts({
+        owner: programOwner.publicKey,
+        mainData,
+        systemProgram,
+        organizationData,
+      })
+      .signers([programOwner])
+      .rpc()
+      .then((tx) => logger.pending(`Register organization: ${tx}`));
+  }
+
+  function isRegistered(organizationData: PublicKey): Promise<boolean> {
+    return program.account.organizationData
+      .fetchNullable(organizationData)
       .then((data) => !!data);
   }
 });

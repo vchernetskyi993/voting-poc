@@ -1,7 +1,7 @@
 [features]
 seeds = false
 [programs.localnet]
-voting = "FHFv3xYqFYxVQCTNSa4EnF5gx4pzFDdvDQmFocGeMxSU"
+voting = "FQKeNb3XQQqGN7ULcMYbWsmppCmN2FKpkhb6ZJWhHFsi"
 
 [registry]
 url = "https://anchor.projectserum.com"

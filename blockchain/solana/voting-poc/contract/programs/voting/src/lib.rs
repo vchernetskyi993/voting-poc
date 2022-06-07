@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
-declare_id!("FHFv3xYqFYxVQCTNSa4EnF5gx4pzFDdvDQmFocGeMxSU");
+declare_id!("FQKeNb3XQQqGN7ULcMYbWsmppCmN2FKpkhb6ZJWhHFsi");
 
 #[program]
 pub mod voting {
@@ -12,7 +12,10 @@ pub mod voting {
         Ok(())
     }
 
-    pub fn register_organization(ctx: Context<RegisterOrganization>, _organization: Pubkey) -> Result<()> {
+    pub fn register_organization(
+        ctx: Context<RegisterOrganization>,
+        _organization: Pubkey,
+    ) -> Result<()> {
         require_keys_eq!(ctx.accounts.owner.key(), ctx.accounts.main_data.owner);
         ctx.accounts.organization_data.elections_count = 0;
         Ok(())
@@ -50,11 +53,15 @@ pub struct RegisterOrganization<'info> {
     pub main_data: Account<'info, MainData>,
     #[account(
         init, payer = owner, space = 8 + 16,
-        seeds = [&sha256(&format!("organization_data_{}", _organization))], 
+        seeds = [&organization_seed(_organization)],
         bump
     )]
     pub organization_data: Account<'info, OrganizationData>,
     pub system_program: Program<'info, System>,
+}
+
+fn organization_seed(organization: Pubkey) -> [u8; 32] {
+    return sha256(&format!("organization_data_{}", organization));
 }
 
 fn sha256(value: &String) -> [u8; 32] {
@@ -65,24 +72,29 @@ fn sha256(value: &String) -> [u8; 32] {
 }
 
 #[derive(Accounts)]
+#[instruction(input: ElectionData)]
 pub struct CreateElection<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub organization: AccountInfo<'info>,
-    #[account(mut, seeds = [b"main_data"], bump)]
-    pub main_data: Account<'info, MainData>,
     #[account(
-        seeds = [format!("organization_data_{}", organization.key).as_bytes()], 
+        mut,
+        seeds = [&organization_seed(organization.key())],
         bump
     )]
     pub organization_data: Account<'info, OrganizationData>,
     #[account(
-        init, payer = organization, space = 8, 
-        seeds = [format!("election_data_{}", organization_data.elections_count).as_bytes()], 
+        init, payer = organization,
+        space = 8 + input.anchor_len(),
+        seeds = [&election_seed(organization_data.elections_count)],
         bump
     )]
     pub election_data: Account<'info, ElectionData>,
     pub system_program: Program<'info, System>,
+}
+
+fn election_seed(election_id: u128) -> [u8; 32] {
+    return sha256(&format!("election_data_{}", election_id));
 }
 
 #[account]
@@ -97,11 +109,33 @@ pub struct OrganizationData {
 
 #[account]
 pub struct ElectionData {
-    start: i64,
-    end: i64,
-    title: String,
-    description: String,
-    candidates: Vec<String>,
+    start: i64,              // 8
+    end: i64,                // 8
+    // title: String,           // 4 + N
+    // description: String,     // 4 + N
+    // candidates: Vec<String>, // 4 + N
+}
+
+trait AnchorLen {
+    fn anchor_len(&self) -> usize;
+}
+
+impl AnchorLen for ElectionData {
+    fn anchor_len(&self) -> usize {
+        // let candidates_len: usize = self
+        //     .candidates
+        //     .iter()
+        //     .map(|candidate| candidate.anchor_len())
+        //     .sum();
+        // 8 + 8 + self.title.anchor_len() + self.description.anchor_len() + candidates_len
+        8 + 8
+    }
+}
+
+impl AnchorLen for String {
+    fn anchor_len(&self) -> usize {
+        4 + self.len()
+    }
 }
 
 #[cfg(test)]

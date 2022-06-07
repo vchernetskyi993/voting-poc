@@ -26,3 +26,22 @@ To run tests from VS Code [Mocha Test Explorer](https://marketplace.visualstudio
   }
 }
 ```
+
+To re-test with clean state:
+
+1. Remove old keys: `rm -rf target/test target/deploy/`
+
+2. Generate new program id `anchor keys list` and set it in `Anchor.toml` and `lib.rs`
+
+3. Build: `anchor build` 
+
+4. Ensure that you have more than 5 SOL: `solana balance` & `solana airdrop 2`
+
+5. Deploy: `anchor deploy --provider.cluster devnet`
+
+6. Run test
+```bash
+ANCHOR_PROVIDER_URL="https://api.devnet.solana.com" \
+    ANCHOR_WALLET="/home/nightingale/.config/solana/id.json" \
+    yarn run mocha -g "<your test name>"
+```
