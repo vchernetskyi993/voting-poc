@@ -10,8 +10,14 @@ import { Voting } from "../target/types/voting";
 import idl from "../target/idl/voting.json";
 import secret from "../target/deploy/voting-keypair.json";
 import { before } from "mocha";
-import { expect } from "chai";
+import chai, { expect } from "chai";
+import chaiAsPromised from "chai-as-promised";
+import fs from "fs/promises";
+import path from "path";
 const { Program, AnchorProvider } = anchor;
+
+chai.should();
+chai.use(chaiAsPromised);
 
 describe("voting", () => {
   anchor.setProvider(AnchorProvider.env());
@@ -20,32 +26,21 @@ describe("voting", () => {
   const programId = Keypair.fromSecretKey(Uint8Array.from(secret)).publicKey;
   const program = new Program(idl as any as Voting, programId);
 
-  const owner = Keypair.generate();
-  const [mainData, _] = PublicKey.findProgramAddressSync(
-    [Buffer.from("main_data")],
-    programId
-  );
+  let owner;
+  const mainData = findPda("main_data");
   const systemProgram = SystemProgram.programId;
 
   before(async () => {
+    owner = await ownerAccount();
     console.log(`Owner: ${owner.publicKey}`);
     await airdrop(owner.publicKey);
-    // await program.methods
-    //   .initialize()
-    //   .accounts({
-    //     owner: owner.publicKey,
-    //     mainData,
-    //     systemProgram,
-    //   })
-    //   .signers([owner])
-    //   .rpc();
+    await initialize();
   });
 
   it("Should register organization", async () => {
     // given
     const organization = Keypair.generate();
     console.log(`Organization: ${organization.publicKey}`);
-    await airdrop(organization.publicKey);
     const organizationData = findPda(
       sha256.array(`organization_data_${organization.publicKey}`)
     );
@@ -55,14 +50,14 @@ describe("voting", () => {
     const tx = await program.methods
       .registerOrganization(organization.publicKey)
       .accounts({
-        owner,
+        owner: owner.publicKey,
         mainData,
         systemProgram,
         organizationData,
       })
       .signers([owner])
       .rpc();
-    console.log(`Transaction: ${tx}`);
+    console.log(`Register transaction: ${tx}`);
 
     // then
     const savedData = await program.account.organizationData.fetch(
@@ -71,7 +66,29 @@ describe("voting", () => {
     expect(savedData.electionsCount.toNumber()).to.equal(0);
   });
 
-  it("Should forbid non-owner to register organizations", async () => {});
+  it("Should forbid non-owner to register organizations", async () => {
+    // given
+    const organization = Keypair.generate();
+    console.log(`Organization: ${organization.publicKey}`);
+    await airdrop(organization.publicKey);
+    const organizationData = findPda(
+      sha256.array(`organization_data_${organization.publicKey}`)
+    );
+    console.log(`Organization Data: ${organizationData}`);
+
+    // when+then
+    return program.methods
+      .registerOrganization(organization.publicKey)
+      .accounts({
+        owner: organization.publicKey,
+        mainData,
+        systemProgram,
+        organizationData,
+      })
+      .signers([organization])
+      .rpc()
+      .should.be.rejectedWith(/RequireKeysEqViolated/);
+  });
 
   xit("Playground", () => {
     // const firstPda = findPda("organization_data_1");
@@ -106,5 +123,42 @@ describe("voting", () => {
 
   function wait(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  function ownerAccount(): Promise<Keypair> {
+    const ownerKeypairFile = "target/test/owner-keypair.json";
+    return fs.stat(ownerKeypairFile).then(
+      (stats) => {
+        return fs.readFile(ownerKeypairFile).then(Keypair.fromSecretKey);
+      },
+      (err) => {
+        const keypair = Keypair.generate();
+        return fs
+          .mkdir(path.dirname(ownerKeypairFile), { recursive: true })
+          .then(() => fs.writeFile(ownerKeypairFile, keypair.secretKey))
+          .then(() => keypair);
+      }
+    );
+  }
+
+  async function initialize(): Promise<void> {
+    const initialized = await isInitialized();
+    if (!initialized) {
+      await program.methods
+        .initialize()
+        .accounts({
+          owner: owner.publicKey,
+          mainData,
+          systemProgram,
+        })
+        .signers([owner])
+        .rpc();
+    }
+  }
+
+  function isInitialized(): Promise<boolean> {
+    return program.account.mainData
+      .fetchNullable(mainData)
+      .then((data) => !!data);
   }
 });

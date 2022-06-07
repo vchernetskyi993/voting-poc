@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use sha2::{Sha256, Digest};
 
-declare_id!("34jePpDQgnfeJkADMwDTKoCjR9pRtcDS6MMqzdkhXkzT");
+declare_id!("FHFv3xYqFYxVQCTNSa4EnF5gx4pzFDdvDQmFocGeMxSU");
 
 #[program]
 pub mod voting {
@@ -35,7 +35,7 @@ pub struct Initialize<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub owner: AccountInfo<'info>,
-    #[account(init, payer = owner, space = 8, seeds = [b"main_data"], bump)]
+    #[account(init, payer = owner, space = 8 + 32, seeds = [b"main_data"], bump)]
     pub main_data: Account<'info, MainData>,
     pub system_program: Program<'info, System>,
 }
@@ -87,7 +87,7 @@ pub struct CreateElection<'info> {
 
 #[account]
 pub struct MainData {
-    pub owner: Pubkey,
+    pub owner: Pubkey, // 32
 }
 
 #[account]
