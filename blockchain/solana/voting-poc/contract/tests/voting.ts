@@ -10,12 +10,12 @@ import { Voting } from "../target/types/voting";
 import idl from "../target/idl/voting.json";
 import secret from "../target/deploy/voting-keypair.json";
 import { before } from "mocha";
-import chai, { expect } from "chai";
+import chai, { assert, expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import fs from "fs/promises";
 import path from "path";
-import dayjs from "dayjs";
-import { BN } from "bn.js";
+import dayjs, { Dayjs } from "dayjs";
+import BN from "bn.js";
 import logger from "mocha-logger";
 const { Program, AnchorProvider } = anchor;
 
@@ -75,7 +75,7 @@ describe("Voting Test Suite", () => {
         organization.publicKey,
         organizationData,
         organization
-      ).should.be.rejectedWith(/RequireKeysEqViolated/);
+      ).should.be.rejectedWith(/OnlyOwner/);
     });
   });
 
@@ -100,18 +100,9 @@ describe("Voting Test Suite", () => {
 
     it("Should create election", async () => {
       // given
-      const electionId = await program.account.organizationData
-        .fetch(organizationData)
-        .then((data) => data.electionsCount);
-      logger.pending();
+      const electionId = await electionsCount();
       const electionData = findPda(sha256.array(`election_data_${electionId}`));
-      const input = {
-        start: new BN(dayjs().add(1, "day").unix()),
-        end: new BN(dayjs().add(3, "day").unix()),
-        title: "Our Election",
-        description: "Our really important election",
-        candidates: ["First One", "Second One"],
-      };
+      const input = election();
 
       // when
       await program.methods
@@ -126,27 +117,129 @@ describe("Voting Test Suite", () => {
         .rpc();
 
       // then
-      const electionsCount = await program.account.organizationData
-        .fetch(organizationData)
-        .then((data) => data.electionsCount);
-      expect(electionsCount.toNumber()).to.equal(electionId.toNumber() + 1);
-      const storedElection = await program.account.electionData.fetch(
-        electionData
-      );
-      expect(storedElection).to.equal(input);
+      const actualCount = await electionsCount();
+      expect(actualCount.toNumber()).to.equal(electionId.toNumber() + 1);
+      const { start, end, title, description, candidates } =
+        await program.account.electionData.fetch(electionData);
+      assert(start.eq(input.start));
+      assert(end.eq(input.end));
+      expect(title).to.equal(input.title);
+      expect(description).to.equal(input.description);
+      expect(candidates).to.deep.equal(input.candidates);
     });
 
-    it("Should not create election for unregistered organization", async () => {});
+    it("Should not create election for unregistered organization", async () => {
+      // given
+      const organization = Keypair.generate();
+      logger.pending(`Organization: ${organization.publicKey}`);
+      await fund(organization.publicKey);
+      const organizationData = findPda(
+        sha256.array(`organization_data_${organization.publicKey}`)
+      );
+      logger.pending(`Organization Data: ${organizationData}`);
+      await registerOrganization(organization.publicKey, organizationData);
 
-    it("Should validate more than 2 candidates", async () => {});
+      const electionData = findPda(sha256.array(`election_data_0`));
+      const input = election();
 
-    it("Should validate start date", async () => {});
+      // when+then
+      return program.methods
+        .createElection(input)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          systemProgram,
+        })
+        .signers([organization])
+        .rpc().should.be.rejected;
+    });
 
-    it("Should validate end date", async () => {});
+    it("Should validate more than 2 candidates", async () => {
+      // given
+      const electionId = await electionsCount();
+      const electionData = findPda(sha256.array(`election_data_${electionId}`));
+      const input = election({ candidates: ["Single candidate"] });
+
+      // when+then
+      return program.methods
+        .createElection(input)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          systemProgram,
+        })
+        .signers([organization])
+        .rpc()
+        .should.be.rejectedWith(/InvalidCandidatesCount/);
+    });
+
+    it("Should validate start date", async () => {
+      // given
+      const electionId = await electionsCount();
+      const electionData = findPda(sha256.array(`election_data_${electionId}`));
+      const input = election({ start: dayjs().subtract(1, "day") });
+
+      // when+then
+      return program.methods
+        .createElection(input)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          systemProgram,
+        })
+        .signers([organization])
+        .rpc()
+        .should.be.rejectedWith(/InvalidStartDate/);
+    });
+
+    it("Should validate end date", async () => {
+      // given
+      const electionId = await electionsCount();
+      const electionData = findPda(sha256.array(`election_data_${electionId}`));
+      const input = election({ start: dayjs().add(4, "day") });
+
+      // when+then
+      return program.methods
+        .createElection(input)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          systemProgram,
+        })
+        .signers([organization])
+        .rpc()
+        .should.be.rejectedWith(/InvalidEndDate/);
+    });
 
     it("Should require exact payment for election creation", async () => {
       // TODO: can we test this in Solana?
     });
+
+    function electionsCount(): Promise<BN> {
+      return program.account.organizationData
+        .fetch(organizationData)
+        .then((data) => data.electionsCount);
+    }
+
+    function election(overrides?: { start?: Dayjs; candidates?: string[] }): {
+      start: anchor.BN;
+      end: anchor.BN;
+      title: string;
+      description: string;
+      candidates: string[];
+    } {
+      return {
+        start: new BN((overrides?.start || dayjs().add(1, "day")).unix()),
+        end: new BN(dayjs().add(3, "day").unix()),
+        title: "Our Election",
+        description: "Our really important election",
+        candidates: overrides?.candidates || ["First One", "Second One"],
+      };
+    }
   });
 
   xit("Playground", () => {
