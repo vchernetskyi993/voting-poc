@@ -103,6 +103,7 @@ describe("Voting Test Suite", () => {
       const electionId = await electionsCount();
       const electionData = findPda(sha256.array(`election_data_${electionId}`));
       const input = election();
+      // TODO: get initial owner balance
 
       // when
       await program.methods
@@ -126,6 +127,7 @@ describe("Voting Test Suite", () => {
       expect(title).to.equal(input.title);
       expect(description).to.equal(input.description);
       expect(candidates).to.deep.equal(input.candidates);
+      // TODO: check owner balance received 0.1 SOL
     });
 
     it("Should not create election for unregistered organization", async () => {
@@ -216,7 +218,10 @@ describe("Voting Test Suite", () => {
     });
 
     it("Should require exact payment for election creation", async () => {
-      // TODO: can we test this in Solana?
+      // TODO: estimate gas & rent cost
+      // TODO: fund organization account with exact cost
+
+      // TODO: create should fail due to insufficient funds
     });
 
     function electionsCount(): Promise<BN> {

@@ -5,6 +5,8 @@ declare_id!("7EDCmRd14WTS9gGVJWhypz43wXp9bnkRgW3zxQzeCFMY");
 
 #[program]
 pub mod voting {
+    // use anchor_lang::solana_program;
+
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -38,6 +40,14 @@ pub mod voting {
         );
         require_gt!(input.end, input.start, VotingErrors::InvalidEndDate);
         //TODO: payment 0.1 SOL
+        // solana_program::program::invoke(
+        //     &solana_program::system_instruction::transfer(
+        //         &ctx.accounts.organization.key,
+        //         &ctx.accounts.organization.key, // set to owner
+        //         1, // set to 0.1 SOL
+        //     ),
+        //     &[ctx.accounts.organization.clone()], // add owner account
+        // )?;
         ctx.accounts.election_data.set_inner(input);
         ctx.accounts.organization_data.elections_count += 1;
         Ok(())
