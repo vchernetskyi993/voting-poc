@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use sha2::{Digest, Sha256};
 
-declare_id!("7EDCmRd14WTS9gGVJWhypz43wXp9bnkRgW3zxQzeCFMY");
+declare_id!("9YC38kX1UhXPN6zBo4GuJHYTJ6rk9ucLxrdP4sj19rgc");
 
 #[program]
 pub mod voting {
-    // use anchor_lang::solana_program;
+    use anchor_lang::solana_program::{self, native_token::sol_to_lamports};
 
     use super::*;
 
@@ -39,15 +39,21 @@ pub mod voting {
             VotingErrors::InvalidStartDate
         );
         require_gt!(input.end, input.start, VotingErrors::InvalidEndDate);
-        //TODO: payment 0.1 SOL
-        // solana_program::program::invoke(
-        //     &solana_program::system_instruction::transfer(
-        //         &ctx.accounts.organization.key,
-        //         &ctx.accounts.organization.key, // set to owner
-        //         1, // set to 0.1 SOL
-        //     ),
-        //     &[ctx.accounts.organization.clone()], // add owner account
-        // )?;
+        let payment = sol_to_lamports(0.01);
+        if ctx.accounts.organization.try_lamports()? < payment {
+            return err!(VotingErrors::InsufficientFundsToCreateElection);
+        }
+        solana_program::program::invoke(
+            &solana_program::system_instruction::transfer(
+                &ctx.accounts.organization.key,
+                &ctx.accounts.owner.key,
+                payment,
+            ),
+            &[
+                ctx.accounts.organization.clone(),
+                ctx.accounts.owner.clone(),
+            ],
+        )?;
         ctx.accounts.election_data.set_inner(input);
         ctx.accounts.organization_data.elections_count += 1;
         Ok(())
@@ -98,6 +104,11 @@ pub struct CreateElection<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub organization: AccountInfo<'info>,
+    #[account(seeds = [b"main_data"], bump)]
+    pub main_data: Account<'info, MainData>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    #[account(mut, constraint = main_data.owner == owner.key())]
+    pub owner: AccountInfo<'info>,
     #[account(
         mut,
         seeds = [&organization_seed(organization.key())],
@@ -107,15 +118,15 @@ pub struct CreateElection<'info> {
     #[account(
         init, payer = organization,
         space = 8 + input.anchor_len(),
-        seeds = [&election_seed(organization_data.elections_count)],
+        seeds = [&election_seed(organization.key, organization_data.elections_count)],
         bump
     )]
     pub election_data: Account<'info, ElectionData>,
     pub system_program: Program<'info, System>,
 }
 
-fn election_seed(election_id: u128) -> [u8; 32] {
-    return sha256(&format!("election_data_{}", election_id));
+fn election_seed(organization: &Pubkey, election_id: u128) -> [u8; 32] {
+    return sha256(&format!("{}_election_data_{}", organization, election_id));
 }
 
 #[error_code]
@@ -128,6 +139,8 @@ pub enum VotingErrors {
     InvalidStartDate,
     #[msg("End date should be after start")]
     InvalidEndDate,
+    #[msg("Create election costs 0.01 SOL")]
+    InsufficientFundsToCreateElection,
 }
 
 #[account]
