@@ -3,6 +3,8 @@ use sha2::{Digest, Sha256};
 
 declare_id!("9YC38kX1UhXPN6zBo4GuJHYTJ6rk9ucLxrdP4sj19rgc");
 
+pub const MAIN_SEED: &[u8; 9] = b"main_data";
+
 #[program]
 pub mod voting {
     use anchor_lang::solana_program::{self, native_token::sol_to_lamports};
@@ -27,7 +29,7 @@ pub mod voting {
         Ok(())
     }
 
-    pub fn create_election(ctx: Context<CreateElection>, input: ElectionData) -> Result<()> {
+    pub fn create_election(ctx: Context<CreateElection>, input: ElectionInput) -> Result<()> {
         require_gt!(
             input.candidates.len(),
             1,
@@ -54,7 +56,7 @@ pub mod voting {
                 ctx.accounts.owner.clone(),
             ],
         )?;
-        ctx.accounts.election_data.set_inner(input);
+        ctx.accounts.election_data.set_inner(input.into());
         ctx.accounts.organization_data.elections_count += 1;
         Ok(())
     }
@@ -65,7 +67,7 @@ pub struct Initialize<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub owner: AccountInfo<'info>,
-    #[account(init, payer = owner, space = 8 + 32, seeds = [b"main_data"], bump)]
+    #[account(init, payer = owner, space = 8 + 32, seeds = [MAIN_SEED], bump)]
     pub main_data: Account<'info, MainData>,
     pub system_program: Program<'info, System>,
 }
@@ -76,18 +78,18 @@ pub struct RegisterOrganization<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub owner: AccountInfo<'info>,
-    #[account(seeds = [b"main_data"], bump)]
+    #[account(seeds = [MAIN_SEED], bump)]
     pub main_data: Account<'info, MainData>,
     #[account(
         init, payer = owner, space = 8 + 16,
-        seeds = [&organization_seed(_organization)],
+        seeds = [&organization_seed(&_organization)],
         bump
     )]
     pub organization_data: Account<'info, OrganizationData>,
     pub system_program: Program<'info, System>,
 }
 
-fn organization_seed(organization: Pubkey) -> [u8; 32] {
+pub fn organization_seed(organization: &Pubkey) -> [u8; 32] {
     return sha256(&format!("organization_data_{}", organization));
 }
 
@@ -104,14 +106,14 @@ pub struct CreateElection<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub organization: AccountInfo<'info>,
-    #[account(seeds = [b"main_data"], bump)]
+    #[account(seeds = [MAIN_SEED], bump)]
     pub main_data: Account<'info, MainData>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, constraint = main_data.owner == owner.key())]
     pub owner: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [&organization_seed(organization.key())],
+        seeds = [&organization_seed(organization.key)],
         bump
     )]
     pub organization_data: Account<'info, OrganizationData>,
@@ -125,7 +127,7 @@ pub struct CreateElection<'info> {
     pub system_program: Program<'info, System>,
 }
 
-fn election_seed(organization: &Pubkey, election_id: u128) -> [u8; 32] {
+pub fn election_seed(organization: &Pubkey, election_id: u128) -> [u8; 32] {
     return sha256(&format!("{}_election_data_{}", organization, election_id));
 }
 
@@ -153,13 +155,34 @@ pub struct OrganizationData {
     pub elections_count: u128, // 16
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ElectionInput {
+    pub start: i64,
+    pub end: i64,
+    pub title: String,
+    pub description: String,
+    pub candidates: Vec<String>,
+}
+
 #[account]
 pub struct ElectionData {
-    start: i64,              // 8
-    end: i64,                // 8
-    title: String,           // 4 + N
-    description: String,     // 4 + N
-    candidates: Vec<String>, // 4 + N * (4 + M)
+    pub start: i64,              // 8
+    pub end: i64,                // 8
+    pub title: String,           // 4 + N
+    pub description: String,     // 4 + N
+    pub candidates: Vec<String>, // 4 + N * (4 + M)
+}
+
+impl From<ElectionInput> for ElectionData {
+    fn from(input: ElectionInput) -> Self {
+        Self {
+            start: input.start,
+            end: input.end,
+            title: input.title,
+            description: input.description,
+            candidates: input.candidates,
+        }
+    }
 }
 
 trait AnchorLen {

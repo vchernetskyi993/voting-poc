@@ -226,7 +226,7 @@ dependencies = [
  "quote 1.0.18",
  "serde",
  "serde_json",
- "sha2",
+ "sha2 0.9.9",
  "syn 1.0.96",
  "thiserror",
 ]
@@ -852,7 +852,7 @@ dependencies = [
  "ed25519",
  "rand 0.7.3",
  "serde",
- "sha2",
+ "sha2 0.9.9",
  "zeroize",
 ]
 
@@ -866,7 +866,7 @@ dependencies = [
  "ed25519-dalek",
  "failure",
  "hmac 0.9.0",
- "sha2",
+ "sha2 0.9.9",
 ]
 
 [[package]]
@@ -1099,11 +1099,11 @@ name = "gateway"
 version = "0.1.0"
 dependencies = [
  "anchor-client",
- "anyhow",
  "dotenv",
  "serde",
  "serde_json",
  "tokio",
+ "voting",
  "warp",
 ]
 
@@ -1503,7 +1503,7 @@ dependencies = [
  "libsecp256k1-gen-genmult",
  "rand 0.7.3",
  "serde",
- "sha2",
+ "sha2 0.9.9",
  "typenum",
 ]
 
@@ -2397,6 +2397,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55deaec60f81eefe3cce0dc50bda92d6d8e88f2a27df7c5033b42afeb1ed2676"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest 0.10.3",
+]
+
+[[package]]
 name = "sha3"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2651,7 +2662,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_derive",
- "sha2",
+ "sha2 0.9.9",
  "solana-frozen-abi-macro",
  "solana-logger",
  "thiserror",
@@ -2787,7 +2798,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_derive",
- "sha2",
+ "sha2 0.9.9",
  "sha3",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
@@ -2946,7 +2957,7 @@ dependencies = [
  "serde_bytes",
  "serde_derive",
  "serde_json",
- "sha2",
+ "sha2 0.9.9",
  "sha3",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
@@ -3250,7 +3261,7 @@ dependencies = [
  "pbkdf2 0.4.0",
  "rand 0.7.3",
  "rustc-hash",
- "sha2",
+ "sha2 0.9.9",
  "thiserror",
  "unicode-normalization",
  "wasm-bindgen",
@@ -3575,6 +3586,14 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "voting"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "sha2 0.10.2",
+]
 
 [[package]]
 name = "walkdir"
