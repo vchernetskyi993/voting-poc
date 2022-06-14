@@ -330,13 +330,22 @@ describe("Voting Test Suite", () => {
     const keypairFile = `target/test/${name}-keypair.json`;
     return fs.stat(keypairFile).then(
       (_stats) => {
-        return fs.readFile(keypairFile).then(Keypair.fromSecretKey);
+        return fs
+          .readFile(keypairFile, "utf-8")
+          .then(JSON.parse)
+          .then((arr) => Uint8Array.from(arr))
+          .then(Keypair.fromSecretKey);
       },
       (_err) => {
         const keypair = Keypair.generate();
         return fs
           .mkdir(path.dirname(keypairFile), { recursive: true })
-          .then(() => fs.writeFile(keypairFile, keypair.secretKey))
+          .then(() =>
+            fs.writeFile(
+              keypairFile,
+              JSON.stringify(Array.from(keypair.secretKey))
+            )
+          )
           .then(() => keypair);
       }
     );
