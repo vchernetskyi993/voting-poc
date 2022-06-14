@@ -1,7 +1,8 @@
 import asyncio
+import hashlib
 import json
 from os import getenv
-from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, TypeVar
+from typing import Any, Awaitable, Callable, TypeVar
 import typer
 from anchorpy import Provider, Wallet
 from solana.rpc.async_api import AsyncClient
@@ -9,18 +10,29 @@ from solana.publickey import PublicKey
 from solana.keypair import Keypair
 from solana.transaction import Transaction
 from solana.system_program import SYS_PROGRAM_ID
+from voting_client.instructions.initialize import initialize as init_instruction
 from voting_client.instructions.register_organization import register_organization
 from voting_client.program_id import PROGRAM_ID
 from voting_client.accounts.organization_data import OrganizationData
 from pathlib import Path
+from hashlib import sha256
 
 app = typer.Typer()
 
 organization_argument = typer.Argument(..., help="Public key of an organization")
-rpc_url_option = typer.Option("https://api.devnet.solana.com", help="Solana RPC Url")
+rpc_url_option = typer.Option("http://localhost:8899", help="Solana RPC Url")
 owner_key_option = typer.Option(
     Path.home() / ".config/solana/id.json", help="Path to voting owner secret"
 )
+
+
+@app.command(help="Initialize program main state")
+def initialize(
+    rpc_url: str = rpc_url_option,
+    owner_key: Path = owner_key_option,
+):
+    _run(rpc_url, owner_key, lambda client: client.initialize())
+    typer.echo(f"{PROGRAM_ID} initialized.")
 
 
 @app.command(help="Register organization for conducting elections")
@@ -78,6 +90,20 @@ class OwnerClient:
         self.provider = provider
         self.owner = owner
 
+    async def initialize(self) -> None:
+        await self.provider.send(
+            Transaction().add(
+                init_instruction(
+                    {
+                        "owner": self.owner.public_key,
+                        "main_data": self._pda(b"main_data"),
+                        "system_program": SYS_PROGRAM_ID,
+                    }
+                )
+            ),
+            [self.owner],
+        )
+
     async def register(self, organization: str) -> None:
         await self.provider.send(
             Transaction().add(
@@ -85,12 +111,8 @@ class OwnerClient:
                     {"organization": PublicKey(organization)},
                     {
                         "owner": self.owner.public_key,
-                        "main_data": PublicKey.create_program_address(
-                            [b"main_data"], PROGRAM_ID
-                        ),
-                        "organization_data": PublicKey.create_program_address(
-                            [f"organization_data_{organization}".encode()], PROGRAM_ID
-                        ),
+                        "main_data": self._pda(b"main_data"),
+                        "organization_data": self._organization_data(organization),
                         "system_program": SYS_PROGRAM_ID,
                     },
                 )
@@ -100,14 +122,15 @@ class OwnerClient:
 
     async def is_registered(self, organization: str) -> bool:
         data = await OrganizationData.fetch(
-            self.client, self.organization_data(organization)
+            self.client, self._organization_data(organization)
         )
         return bool(data)
 
-    def organization_data(self, organization: str) -> PublicKey:
-        return PublicKey.create_program_address(
-            [f"organization_data_{organization}".encode()], PROGRAM_ID
-        )
+    def _organization_data(self, organization: str) -> PublicKey:
+        return self._pda(sha256(f"organization_data_{organization}".encode()).digest())
+
+    def _pda(self, seed: bytes) -> PublicKey:
+        return PublicKey.find_program_address([seed], PROGRAM_ID)[0]
 
 
 if __name__ == "__main__":
