@@ -1,8 +1,6 @@
 import asyncio
-import hashlib
 import json
-from os import getenv
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Awaitable, Callable, TypeVar
 import typer
 from anchorpy import Provider, Wallet
 from solana.rpc.async_api import AsyncClient
