@@ -7,18 +7,21 @@ use anchor_client::{
         signer::Signer,
         system_program,
     },
-    Client, Cluster, Program,
+    Client, ClientError, Cluster, Program,
 };
 
-use super::models::{Election, ListOptions, Page};
+use super::models::{Election, ListOptions, Page, VotingError};
 
-pub fn create_election(input: &Election) -> u128 {
+pub fn create_election(input: &Election) -> Result<u128, VotingError> {
     let program = program();
     let organization = organization_account();
     let (main_data, _) = Pubkey::find_program_address(&[voting::MAIN_SEED], &program_id());
     let owner = program
         .account::<voting::MainData>(main_data)
-        .unwrap()
+        .map_err(|err| match err {
+            ClientError::AccountNotFound => VotingError::MainPdaNotInitialized,
+            _ => VotingError::Unknown(err),
+        })?
         .owner;
     let (organization_data, _) = Pubkey::find_program_address(
         &[&voting::organization_seed(&organization.pubkey())],
@@ -26,12 +29,14 @@ pub fn create_election(input: &Election) -> u128 {
     );
     let election_id = program
         .account::<voting::OrganizationData>(organization_data)
-        .unwrap()
+        .map_err(|err| match err {
+            ClientError::AccountNotFound => {
+                VotingError::OrganizationNotRegistered(organization.pubkey())
+            }
+            _ => VotingError::Unknown(err),
+        })?
         .elections_count;
-    let (election_data, _) = Pubkey::find_program_address(
-        &[&voting::election_seed(&organization.pubkey(), election_id)],
-        &program_id(),
-    );
+    let election_data = election_pda(&organization.pubkey(), election_id);
 
     program
         .request()
@@ -47,18 +52,36 @@ pub fn create_election(input: &Election) -> u128 {
         .args(voting::instruction::CreateElection {
             input: input.clone().into(),
         })
-        .send()
-        .unwrap();
+        .send().map_err(|err| VotingError::Unknown(err))?;
 
-    election_id
+    Ok(election_id)
 }
 
-pub fn list_elections(_opts: &ListOptions) -> Page<Election> {
-    todo!()
+pub fn list_elections(opts: &ListOptions) -> Page<Election> {
+    let page_number = opts.page_number.unwrap_or(1);
+    let page_size = opts.page_size.unwrap_or(10);
+
+    Page {
+        page_number,
+        page_size,
+        values: todo!(),
+        elements_count: todo!(),
+        page_count: todo!(),
+    }
 }
 
-pub fn fetch_election(_election_id: u128) -> Election {
-    todo!()
+pub fn fetch_election(election_id: u128) -> Result<Election, VotingError> {
+    let program = program();
+    let organization = organization_account();
+    let election_data = election_pda(&organization.pubkey(), election_id);
+
+    program
+        .account::<voting::ElectionData>(election_data)
+        .map(Election::from)
+        .map_err(|err| match err {
+            ClientError::AccountNotFound => VotingError::ElectionNotFound(election_id),
+            _ => VotingError::Unknown(err),
+        })
 }
 
 fn program() -> Program {
@@ -84,6 +107,14 @@ fn organization_account() -> Keypair {
     read_keypair_file(env::var("ORG_PRIVATE_KEY_PATH").unwrap()).unwrap()
 }
 
+fn election_pda(organization: &Pubkey, election_id: u128) -> Pubkey {
+    Pubkey::find_program_address(
+        &[&voting::election_seed(organization, election_id)],
+        &program_id(),
+    )
+    .0
+}
+
 impl Into<voting::ElectionInput> for Election {
     fn into(self) -> voting::ElectionInput {
         voting::ElectionInput {
@@ -92,6 +123,18 @@ impl Into<voting::ElectionInput> for Election {
             title: self.title.clone(),
             description: self.description.clone(),
             candidates: self.candidates.clone(),
+        }
+    }
+}
+
+impl From<voting::ElectionData> for Election {
+    fn from(data: voting::ElectionData) -> Self {
+        Self {
+            start: data.start,
+            end: data.end,
+            title: data.title,
+            description: data.description,
+            candidates: data.candidates,
         }
     }
 }
