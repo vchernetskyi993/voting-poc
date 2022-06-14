@@ -53,11 +53,11 @@ pub fn create_election(input: &Election) -> u128 {
     election_id
 }
 
-pub fn list_elections(opts: &ListOptions) -> Page<Election> {
+pub fn list_elections(_opts: &ListOptions) -> Page<Election> {
     todo!()
 }
 
-pub fn fetch_election(election_id: u128) -> Election {
+pub fn fetch_election(_election_id: u128) -> Election {
     todo!()
 }
 
@@ -84,9 +84,9 @@ fn organization_account() -> Keypair {
     read_keypair_file(env::var("ORG_PRIVATE_KEY_PATH").unwrap()).unwrap()
 }
 
-impl Into<voting::ElectionData> for Election {
-    fn into(self) -> voting::ElectionData {
-        voting::ElectionData {
+impl Into<voting::ElectionInput> for Election {
+    fn into(self) -> voting::ElectionInput {
+        voting::ElectionInput {
             start: self.start,
             end: self.end,
             title: self.title.clone(),
