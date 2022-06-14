@@ -4,6 +4,24 @@ Core part of open elections. Contact for communicating with Solana network.
 
 ## Dev setup
 
+### To test on localhost:
+
+```bash
+anchor test
+
+# OR:
+anchor build
+solana-test-validator
+anchor deploy
+ANCHOR_PROVIDER_URL="http://localhost:8899" \
+    ANCHOR_WALLET="/home/nightingale/.config/solana/id.json" \
+    yarn run mocha
+```
+
+### Testing on devnet:
+
+Uncomment waiting in `fund` in `tests/voting.ts`.
+
 ```bash
 # deploy to devnet
 anchor deploy --provider.cluster devnet
@@ -17,17 +35,7 @@ ANCHOR_PROVIDER_URL="https://api.devnet.solana.com" \
     yarn run mocha
 ```
 
-To run tests from VS Code [Mocha Test Explorer](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-mocha-test-adapter):
-```json
-{
-  "mochaExplorer.env": {
-    "ANCHOR_PROVIDER_URL": "https://api.devnet.solana.com",
-    "ANCHOR_WALLET": "/home/nightingale/.config/solana/id.json"
-  }
-}
-```
-
-To re-test with clean state:
+To re-test on devnet with clean state:
 
 1. Remove old keys: `rm -rf target/test target/deploy/`
 
@@ -44,4 +52,16 @@ To re-test with clean state:
 ANCHOR_PROVIDER_URL="https://api.devnet.solana.com" \
     ANCHOR_WALLET="/home/nightingale/.config/solana/id.json" \
     yarn run mocha -g "<your test name>"
+```
+
+### VS Code
+
+To run tests from VS Code [Mocha Test Explorer](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-mocha-test-adapter):
+```json
+{
+  "mochaExplorer.env": {
+    "ANCHOR_PROVIDER_URL": "https://api.devnet.solana.com",
+    "ANCHOR_WALLET": "/home/nightingale/.config/solana/id.json"
+  }
+}
 ```

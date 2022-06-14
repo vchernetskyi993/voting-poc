@@ -317,9 +317,9 @@ describe("Voting Test Suite", () => {
       signature: txa,
       ...latestBlockHash,
     });
-    // TODO: check if needed for local env setup
-    logger.pending("Waiting for 10 seconds after airdrop...");
-    await wait(10000);
+    // uncomment for devnet
+    // logger.pending("Waiting for 10 seconds after airdrop...");
+    // await wait(10000);
   }
 
   function wait(milliseconds: number): Promise<void> {
