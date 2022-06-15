@@ -35,8 +35,6 @@ pub struct Page<T> {
 
 #[derive(Debug, Error)]
 pub enum VotingError {
-    #[error("Main program data is not initialized")]
-    MainPdaNotInitialized,
     #[error("Organization `{0}` not registered")]
     OrganizationNotRegistered(Pubkey),
     #[error("Election `{0}` not found")]

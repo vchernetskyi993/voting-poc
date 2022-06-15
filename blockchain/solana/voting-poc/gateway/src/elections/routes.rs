@@ -7,7 +7,7 @@ use warp::{
 use crate::elections::models::{Election, ListOptions};
 
 use super::{
-    contract,
+    contract::VotingContract,
     models::{ElectionId, ErrorMessage, VotingError},
 };
 
@@ -33,29 +33,29 @@ pub fn elections() -> impl Filter<Extract = impl warp::Reply, Error = warp::Reje
 }
 
 async fn create_election(input: Election) -> Result<warp::reply::Response, warp::Rejection> {
-    let result = run_blocking(move || contract::create_election(&input)).await;
-    
+    let result = run_blocking(move || VotingContract::new().create_election(&input)).await;
+
     match result {
         Ok(id) => Ok(json(&ElectionId { id }).into_response()),
-        Err(error) => Ok(error.into_response())
+        Err(error) => Ok(error.into_response()),
     }
 }
 
 async fn list_elections(opts: ListOptions) -> Result<impl warp::Reply, warp::Rejection> {
-    let result = run_blocking(move || contract::list_elections(&opts)).await;
-    
+    let result = run_blocking(move || VotingContract::new().list_elections(&opts)).await;
+
     match result {
         Ok(page) => Ok(json(&page).into_response()),
-        Err(error) => Ok(error.into_response())
+        Err(error) => Ok(error.into_response()),
     }
 }
 
 async fn fetch_election(election_id: u128) -> Result<warp::reply::Response, warp::Rejection> {
-    let result = run_blocking(move || contract::fetch_election(election_id)).await;
+    let result = run_blocking(move || VotingContract::new().fetch_election(election_id)).await;
 
     match result {
         Ok(election) => Ok(json(&election).into_response()),
-        Err(error) => Ok(error.into_response())        
+        Err(error) => Ok(error.into_response()),
     }
 }
 
@@ -68,8 +68,7 @@ impl Reply for VotingError {
 impl VotingError {
     fn to_http_status(&self) -> StatusCode {
         match self {
-            VotingError::MainPdaNotInitialized => StatusCode::BAD_REQUEST,
-            VotingError::OrganizationNotRegistered(key) => StatusCode::BAD_REQUEST,
+            VotingError::OrganizationNotRegistered(_) => StatusCode::BAD_REQUEST,
             VotingError::ElectionNotFound(_) => StatusCode::NOT_FOUND,
             VotingError::Unknown(err) => {
                 tracing::error!("Error: {}", err);
