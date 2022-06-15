@@ -23,19 +23,8 @@ pub fn create_election(input: &Election) -> Result<u128, VotingError> {
             _ => VotingError::Unknown(err),
         })?
         .owner;
-    let (organization_data, _) = Pubkey::find_program_address(
-        &[&voting::organization_seed(&organization.pubkey())],
-        &program_id(),
-    );
-    let election_id = program
-        .account::<voting::OrganizationData>(organization_data)
-        .map_err(|err| match err {
-            ClientError::AccountNotFound => {
-                VotingError::OrganizationNotRegistered(organization.pubkey())
-            }
-            _ => VotingError::Unknown(err),
-        })?
-        .elections_count;
+    let organization_data = organization_pda(&organization.pubkey());
+    let election_id = elections_count(&program, organization_data, organization.pubkey())?;
     let election_data = election_pda(&organization.pubkey(), election_id);
 
     program
@@ -52,22 +41,44 @@ pub fn create_election(input: &Election) -> Result<u128, VotingError> {
         .args(voting::instruction::CreateElection {
             input: input.clone().into(),
         })
-        .send().map_err(|err| VotingError::Unknown(err))?;
+        .send()
+        .map_err(|err| VotingError::Unknown(err))?;
 
     Ok(election_id)
 }
 
-pub fn list_elections(opts: &ListOptions) -> Page<Election> {
+pub fn list_elections(opts: &ListOptions) -> Result<Page<Election>, VotingError> {
     let page_number = opts.page_number.unwrap_or(1);
-    let page_size = opts.page_size.unwrap_or(10);
+    let expected_size: u128 = opts.page_size.unwrap_or(10) as u128;
+    let program = program();
+    let organization = organization_account();
+    let organization_data = organization_pda(&organization.pubkey());
+    let elements_count = elections_count(&program, organization_data, organization.pubkey())?;
+    let page_count: u128 = elements_count / expected_size
+        + (if elements_count % expected_size == 0 {
+            0
+        } else {
+            1
+        });
+    let start = expected_size * (page_number - 1);
+    let actual_size = if page_count == page_number {
+        elements_count % expected_size
+    } else {
+        expected_size
+    };
+    let values = (start..(start + actual_size))
+        .map(|id| fetch_election(id))
+        .filter(|r| r.is_ok())
+        .map(|r| r.unwrap())
+        .collect();
 
-    Page {
+    Ok(Page {
         page_number,
-        page_size,
-        values: todo!(),
-        elements_count: todo!(),
-        page_count: todo!(),
-    }
+        page_size: actual_size.try_into().unwrap(),
+        values,
+        elements_count,
+        page_count,
+    })
 }
 
 pub fn fetch_election(election_id: u128) -> Result<Election, VotingError> {
@@ -107,12 +118,30 @@ fn organization_account() -> Keypair {
     read_keypair_file(env::var("ORG_PRIVATE_KEY_PATH").unwrap()).unwrap()
 }
 
+fn organization_pda(organization: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[&voting::organization_seed(organization)], &program_id()).0
+}
+
 fn election_pda(organization: &Pubkey, election_id: u128) -> Pubkey {
     Pubkey::find_program_address(
         &[&voting::election_seed(organization, election_id)],
         &program_id(),
     )
     .0
+}
+
+fn elections_count(
+    program: &Program,
+    organization_data: Pubkey,
+    organization: Pubkey,
+) -> Result<u128, VotingError> {
+    Ok(program
+        .account::<voting::OrganizationData>(organization_data)
+        .map_err(|err| match err {
+            ClientError::AccountNotFound => VotingError::OrganizationNotRegistered(organization),
+            _ => VotingError::Unknown(err),
+        })?
+        .elections_count)
 }
 
 impl Into<voting::ElectionInput> for Election {

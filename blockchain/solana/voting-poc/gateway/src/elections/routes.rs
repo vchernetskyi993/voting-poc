@@ -37,16 +37,17 @@ async fn create_election(input: Election) -> Result<warp::reply::Response, warp:
     
     match result {
         Ok(id) => Ok(json(&ElectionId { id }).into_response()),
-        Err(error) => {
-            Ok(error.to_response())
-        }
+        Err(error) => Ok(error.into_response())
     }
 }
 
 async fn list_elections(opts: ListOptions) -> Result<impl warp::Reply, warp::Rejection> {
-    let page = run_blocking(move || contract::list_elections(&opts)).await;
-
-    Ok(json(&page))
+    let result = run_blocking(move || contract::list_elections(&opts)).await;
+    
+    match result {
+        Ok(page) => Ok(json(&page).into_response()),
+        Err(error) => Ok(error.into_response())
+    }
 }
 
 async fn fetch_election(election_id: u128) -> Result<warp::reply::Response, warp::Rejection> {
@@ -54,17 +55,17 @@ async fn fetch_election(election_id: u128) -> Result<warp::reply::Response, warp
 
     match result {
         Ok(election) => Ok(json(&election).into_response()),
-        Err(error) => {
-            Ok(error.to_response())
-        }
+        Err(error) => Ok(error.into_response())        
+    }
+}
+
+impl Reply for VotingError {
+    fn into_response(self) -> warp::reply::Response {
+        warp::reply::with_status(self.to_json(), self.to_http_status()).into_response()
     }
 }
 
 impl VotingError {
-    fn to_response(&self) -> warp::reply::Response {
-        warp::reply::with_status(self.to_json(), self.to_http_status()).into_response()
-    }
-
     fn to_http_status(&self) -> StatusCode {
         match self {
             VotingError::MainPdaNotInitialized => StatusCode::BAD_REQUEST,
