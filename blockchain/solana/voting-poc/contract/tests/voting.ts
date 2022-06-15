@@ -86,7 +86,7 @@ describe("Voting Test Suite", () => {
     });
   });
 
-  describe("Create Election Tests", () => {
+  describe("Election Tests", () => {
     let organization: Keypair;
     let organizationData: PublicKey;
 
@@ -193,6 +193,49 @@ describe("Voting Test Suite", () => {
         .should.be.rejectedWith(/InsufficientFundsToCreateElection/);
     });
 
+    it("Should vote", async () => {
+      // given
+      const electionId = await electionsCount();
+      await createElectionBuilder().then((builder) => builder.rpc());
+      const voter = Keypair.generate();
+      // TODO: remove when voting is free
+      await fund(voter.publicKey);
+      const electionData = await electionPda({ electionId });
+
+      // when
+      await vote(electionId, voter, { electionData });
+
+      // then
+      const results = await program.account.electionData
+        .fetch(electionData)
+        .then((data) => data.results);
+      expect(results[0]).to.be.a.bignumber.that.is.equal(new BN(0));
+      expect(results[1]).to.be.a.bignumber.that.is.equal(new BN(1));
+    });
+
+    xit("Should validate start date on vote", async () => {
+      // Not possible in solana-test-validator
+      // see: https://stackoverflow.com/questions/71925184/how-do-i-control-the-solana-test-validator-clock-in-javascript
+    });
+
+    xit("Should validate end date on vote", async () => {
+      // Not possible in solana-test-validator
+      // see: https://stackoverflow.com/questions/71925184/how-do-i-control-the-solana-test-validator-clock-in-javascript
+    });
+
+    it("Should validate vote uniqueness", async () => {
+      // given
+      const electionId = await electionsCount();
+      await createElectionBuilder().then((builder) => builder.rpc());
+      const voter = Keypair.generate();
+      // TODO: remove when voting is free
+      await fund(voter.publicKey);
+      await vote(electionId, voter);
+
+      // when+then
+      return vote(electionId, voter).should.be.rejected;
+    });
+
     function electionsCount(
       orgData: PublicKey = organizationData
     ): Promise<BN> {
@@ -224,7 +267,8 @@ describe("Voting Test Suite", () => {
         (4 +
           election.candidates
             .map((candidate) => 4 + candidate.length)
-            .reduce((a, b) => a + b))
+            .reduce((a, b) => a + b)) +
+        (4 + election.candidates.length * 16)
       );
     }
 
@@ -270,6 +314,14 @@ describe("Voting Test Suite", () => {
       return findPda(sha256.array(`${org}_election_data_${electionId}`));
     }
 
+    function voterPda(electionId: BN, voter: PublicKey): PublicKey {
+      return findPda(
+        sha256.array(
+          `${organization.publicKey}_${electionId}_voter_data_${voter}`
+        )
+      );
+    }
+
     async function createElectionBuilder(options?: {
       input?: Election;
       organization?: Keypair;
@@ -294,6 +346,26 @@ describe("Voting Test Suite", () => {
           systemProgram,
         })
         .signers([signer]);
+    }
+
+    async function vote(
+      electionId: BN,
+      voter: Keypair,
+      options?: { electionData?: PublicKey }
+    ): Promise<string> {
+      const electionData =
+        options?.electionData || (await electionPda({ electionId }));
+      return program.methods
+        .vote(electionId, 1)
+        .accounts({
+          organization: organization.publicKey,
+          organizationData,
+          electionData,
+          voter: voter.publicKey,
+          voterData: voterPda(electionId, voter.publicKey),
+        })
+        .signers([voter])
+        .rpc();
     }
   });
 
