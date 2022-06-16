@@ -71,7 +71,7 @@ impl VotingError {
             VotingError::OrganizationNotRegistered(_) => StatusCode::BAD_REQUEST,
             VotingError::ElectionNotFound(_) => StatusCode::NOT_FOUND,
             VotingError::Unknown(err) => {
-                tracing::error!("Error: {}", err);
+                tracing::error!("Error: {:#?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         }

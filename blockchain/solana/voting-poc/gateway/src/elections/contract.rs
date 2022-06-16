@@ -24,9 +24,9 @@ impl VotingContract {
     pub fn new() -> Self {
         let program_id = program_id();
         let program = program();
-        let main_data = Pubkey::find_program_address(&[voting::MAIN_SEED], &program_id).0;
+        let main_data = Pubkey::find_program_address(&[voting::utils::MAIN_SEED], &program_id).0;
         let owner = program
-            .account::<voting::MainData>(main_data)
+            .account::<voting::state::MainData>(main_data)
             .unwrap()
             .owner;
         let organization = organization_account();
@@ -99,7 +99,7 @@ impl VotingContract {
         let election_data = self.election_pda(election_id);
 
         self.program
-            .account::<voting::ElectionData>(election_data)
+            .account::<voting::state::ElectionData>(election_data)
             .map(Election::from)
             .map_err(|err| match err {
                 ClientError::AccountNotFound => VotingError::ElectionNotFound(election_id),
@@ -109,7 +109,7 @@ impl VotingContract {
 
     fn elections_count(&self) -> Result<u128, VotingError> {
         Ok(self.program
-            .account::<voting::OrganizationData>(self.organization_data)
+            .account::<voting::state::OrganizationData>(self.organization_data)
             .map_err(|err| match err {
                 ClientError::AccountNotFound => {
                     VotingError::OrganizationNotRegistered(self.organization.pubkey())
@@ -121,7 +121,7 @@ impl VotingContract {
 
     fn election_pda(&self, election_id: u128) -> Pubkey {
         Pubkey::find_program_address(
-            &[&voting::election_seed(&self.organization.pubkey(), election_id)],
+            &[&voting::utils::election_seed(&self.organization.pubkey(), election_id)],
             &program_id(),
         )
         .0
@@ -152,12 +152,12 @@ fn organization_account() -> Keypair {
 }
 
 fn organization_pda(organization: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[&voting::organization_seed(organization)], &program_id()).0
+    Pubkey::find_program_address(&[&voting::utils::organization_seed(organization)], &program_id()).0
 }
 
-impl Into<voting::ElectionInput> for Election {
-    fn into(self) -> voting::ElectionInput {
-        voting::ElectionInput {
+impl Into<voting::state::ElectionInput> for Election {
+    fn into(self) -> voting::state::ElectionInput {
+        voting::state::ElectionInput {
             start: self.start,
             end: self.end,
             title: self.title.clone(),
@@ -167,8 +167,8 @@ impl Into<voting::ElectionInput> for Election {
     }
 }
 
-impl From<voting::ElectionData> for Election {
-    fn from(data: voting::ElectionData) -> Self {
+impl From<voting::state::ElectionData> for Election {
+    fn from(data: voting::state::ElectionData) -> Self {
         Self {
             start: data.start,
             end: data.end,
