@@ -1,0 +1,3 @@
+[submodule "near"]
+	path = near
+	url = https://github.com/vchernetskyi993/ncd-voting-platform.git
