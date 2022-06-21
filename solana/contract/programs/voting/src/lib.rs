@@ -7,6 +7,7 @@ pub mod errors;
 pub mod instructions;
 pub mod state;
 pub mod utils;
+pub mod events;
 
 declare_id!("izyDVLDUCJuvrTokXBunuxNiiiT2CaBhyVJ7LavBhuY");
 

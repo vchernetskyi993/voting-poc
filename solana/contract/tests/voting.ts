@@ -101,6 +101,14 @@ describe("Voting Test Suite", () => {
       const electionId = await electionsCount();
       const input = election();
       const ownerBalance = await connection.getBalance(owner.publicKey);
+      let electionCreatedEvent;
+      const listener = program.addEventListener(
+        "ElectionCreated",
+        (event, _slot) => {
+          logger.pending("Received ElectionCreated event");
+          electionCreatedEvent = event;
+        }
+      );
 
       // when
       await createElectionBuilder({ input }).then((builder) => builder.rpc());
@@ -119,6 +127,14 @@ describe("Voting Test Suite", () => {
       expect(candidates).to.deep.equal(input.candidates);
       const newOwnerBalance = await connection.getBalance(owner.publicKey);
       expect(newOwnerBalance).to.equal(ownerBalance + 0.01 * LAMPORTS_PER_SOL);
+      program.removeEventListener(listener);
+      expect(electionCreatedEvent).to.exist;
+      expect(electionCreatedEvent.organization.toString()).to.equal(
+        organization.publicKey.toString()
+      );
+      expect(electionCreatedEvent.electionId).to.be.a.bignumber.that.equals(
+        electionId
+      );
     });
 
     it("Should not create election for unregistered organization", async () => {
@@ -200,6 +216,14 @@ describe("Voting Test Suite", () => {
       const voter = Keypair.generate();
       logger.pending(`Voter: ${voter.publicKey}`);
       const electionData = await electionPda({ electionId });
+      let votedEvent;
+      const listener = program.addEventListener(
+        "Voted",
+        (event, _slot) => {
+          logger.pending("Received Voted event");
+          votedEvent = event;
+        }
+      );
 
       // when
       await vote(electionId, voter, { electionData });
@@ -210,6 +234,16 @@ describe("Voting Test Suite", () => {
         .then((data) => data.results);
       expect(results[0]).to.be.a.bignumber.that.is.equal(new BN(0));
       expect(results[1]).to.be.a.bignumber.that.is.equal(new BN(1));
+      program.removeEventListener(listener);
+      expect(votedEvent).to.exist;
+      expect(votedEvent.organization.toString()).to.equal(
+        organization.publicKey.toString()
+      );
+      expect(votedEvent.electionId).to.be.a.bignumber.that.equals(
+        electionId
+      );
+      expect(votedEvent.voter.toString()).to.equal(voter.publicKey.toString());
+      expect(votedEvent.candidateId).to.equal(1);
     });
 
     xit("Should validate start date on vote", async () => {

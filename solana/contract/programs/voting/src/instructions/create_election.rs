@@ -5,6 +5,7 @@ use anchor_lang::{
 
 use crate::{
     errors::ElectionErrors,
+    events::ElectionCreated,
     state::{AnchorLen, ElectionData, ElectionInput, MainData, OrganizationData},
     utils::{election_seed, organization_seed, MAIN_SEED},
 };
@@ -38,6 +39,10 @@ pub fn create_election(ctx: Context<CreateElection>, input: ElectionInput) -> Re
     )?;
     ctx.accounts.election_data.set_inner(input.into());
     ctx.accounts.organization_data.elections_count += 1;
+    emit!(ElectionCreated {
+        organization: ctx.accounts.organization.key(),
+        election_id: ctx.accounts.organization_data.elections_count - 1
+    });
     Ok(())
 }
 
