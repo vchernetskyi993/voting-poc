@@ -2,9 +2,10 @@
     "name": "voter-dapp",
     "version": "0.1.0",
     "scripts": {
-        "clean": "shx rm -rf dist .parcel-cache",
-        "build": "yarn clean && parcel build src/index.html",
-        "start": "yarn clean && parcel src/index.html",
+        "clean": "shx rm -rf dist .parcel-cache src/voting-client",
+        "build:client": "anchor-client-gen ../contract/target/idl/voting.json src/voting-client",
+        "build": "yarn clean && yarn build:client && parcel build src/index.html",
+        "start": "yarn clean && yarn build:client && parcel src/index.html",
         "fmt": "prettier --write '{*,**/*}.{js,ts,jsx,tsx,json}'",
         "lint": "eslint . && prettier --check '{*,**/*}.{js,ts,jsx,tsx,json}'",
         "lint:fix": "eslint --fix . && yarn fmt",

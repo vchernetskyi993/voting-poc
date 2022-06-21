@@ -35,7 +35,7 @@ pub struct Vote<'info> {
     #[account(mut, signer)]
     pub voter: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
-    #[account()]
+    #[account(mut, signer)]
     pub organization: AccountInfo<'info>,
     #[account(seeds = [&organization_seed(organization.key)], bump)]
     pub organization_data: Account<'info, OrganizationData>,
@@ -46,7 +46,7 @@ pub struct Vote<'info> {
     )]
     pub election_data: Account<'info, ElectionData>,
     #[account(
-        init, payer = voter,
+        init, payer = organization,
         space = 8,
         seeds = [&voter_seed(organization.key, _election_id, voter.key)],
         bump

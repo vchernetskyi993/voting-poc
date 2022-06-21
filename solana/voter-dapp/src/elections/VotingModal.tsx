@@ -47,9 +47,9 @@ function VotingModal({
         setChoice((event.target as HTMLInputElement).value);
     };
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const tx = new Transaction().add(
+        const tx0 = new Transaction().add(
             vote(
                 { electionId: new BN(electionId), candidateId: +choice },
                 {
@@ -62,18 +62,44 @@ function VotingModal({
                 }
             )
         );
-        Promise.all([
-            wallet.sendTransaction(tx, connection),
-            connection.getLatestBlockhash(),
-        ])
-            .then(([signature, blockhash]) => {
+        const recentBlockhash = await connection.getLatestBlockhash();
+        tx0.recentBlockhash = recentBlockhash.blockhash;
+        tx0.feePayer = organization;
+        console.log(tx0.signatures);
+        const signed = await fetch(`${process.env.REACT_APP_SIGNER_URL}/sign`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                tx: tx0
+                    .serialize({ requireAllSignatures: false })
+                    .toString("base64"),
+            }),
+        })
+            .then((res) => res.json())
+            .then((data) => Buffer.from(data.tx, "base64"))
+            .then(Transaction.from);
+        console.log(signed.signatures);
+        wallet
+            .signTransaction?.(signed)
+            .then((tx) =>
+                Promise.all([
+                    connection.sendRawTransaction(tx.serialize()),
+                    connection.getLatestBlockhash(),
+                ])
+            )
+            .then(([signature, blockhash]) =>
                 connection.confirmTransaction(
                     { signature, ...blockhash },
                     "processed"
-                );
-            })
-            .then(() => close());
-        setChoice("");
+                )
+            )
+            .then(() => {
+                setChoice("");
+                close();
+            });
     };
 
     const close = () => {

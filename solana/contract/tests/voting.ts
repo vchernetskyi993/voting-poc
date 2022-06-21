@@ -198,8 +198,7 @@ describe("Voting Test Suite", () => {
       const electionId = await electionsCount();
       await createElectionBuilder().then((builder) => builder.rpc());
       const voter = Keypair.generate();
-      // TODO: remove when voting is free
-      await fund(voter.publicKey);
+      logger.pending(`Voter: ${voter.publicKey}`);
       const electionData = await electionPda({ electionId });
 
       // when
@@ -227,9 +226,7 @@ describe("Voting Test Suite", () => {
       // given
       const electionId = await electionsCount();
       await createElectionBuilder().then((builder) => builder.rpc());
-      const voter = Keypair.generate();
-      // TODO: remove when voting is free
-      await fund(voter.publicKey);
+      const voter = await account("voter");
       await vote(electionId, voter);
 
       // when+then
@@ -364,7 +361,7 @@ describe("Voting Test Suite", () => {
           voter: voter.publicKey,
           voterData: voterPda(electionId, voter.publicKey),
         })
-        .signers([voter])
+        .signers([organization, voter])
         .rpc();
     }
   });

@@ -8,7 +8,7 @@ pub mod instructions;
 pub mod state;
 pub mod utils;
 
-declare_id!("4JA7SFWdpchJETv26nhLCpWYYd5yoMG3Xy6zL8wMP6DL");
+declare_id!("izyDVLDUCJuvrTokXBunuxNiiiT2CaBhyVJ7LavBhuY");
 
 #[program]
 pub mod voting {
