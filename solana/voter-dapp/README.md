@@ -7,6 +7,8 @@ So, it provides an ability for users to vote on some organizational decisions.
 ## Getting started
 
 ```bash
+# prerequisite: build/deploy contract
+
 # install dependencies
 yarn
 

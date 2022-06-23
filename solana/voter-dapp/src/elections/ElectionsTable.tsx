@@ -7,14 +7,17 @@ import {
     TableRow,
     Typography,
 } from "@mui/material";
+import { Program } from "@project-serum/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import React from "react";
+import { Voting } from "../idl/voting";
 import { OrganizationData } from "../voting-client/accounts";
 import ElectionRow from "./ElectionRow";
 
 function ElectionsTable({
     openVotingModal,
     connection,
+    program,
     voter,
     organization,
     organizationPda,
@@ -26,6 +29,7 @@ function ElectionsTable({
         voterPda: PublicKey
     ) => void;
     connection: Connection;
+    program: Program<Voting>;
     voter: PublicKey;
     organization: PublicKey;
     organizationPda: PublicKey;
@@ -70,6 +74,7 @@ function ElectionsTable({
                             key={electionId}
                             electionId={electionId}
                             connection={connection}
+                            program={program}
                             voter={voter}
                             openVotingModal={openVotingModal}
                             organization={organization}

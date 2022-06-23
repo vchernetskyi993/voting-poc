@@ -1,4 +1,5 @@
 import { Backdrop, Box, CircularProgress } from "@mui/material";
+import { AnchorProvider, Program } from "@project-serum/anchor";
 import { WalletError } from "@solana/wallet-adapter-base";
 import {
     WalletDialogProvider,
@@ -6,6 +7,7 @@ import {
 } from "@solana/wallet-adapter-material-ui";
 import {
     ConnectionProvider,
+    useAnchorWallet,
     useConnection,
     useWallet,
     WalletProvider,
@@ -23,7 +25,10 @@ import ElectionsTable from "./elections/ElectionsTable";
 import Title from "./elections/Title";
 import { findPda } from "./elections/utils";
 import VotingModal from "./elections/VotingModal";
+import idl from "./idl/voting.json";
+import { Voting } from "./idl/voting";
 import { Theme } from "./Theme";
+import { PROGRAM_ID } from "./voting-client/programId";
 
 export const App: FC = () => {
     return (
@@ -37,6 +42,7 @@ export const App: FC = () => {
 
 const Context: FC<{ children: ReactNode }> = ({ children }) => {
     const endpoint = process.env.REACT_APP_SOLANA_URL;
+    const wsEndpoint = process.env.REACT_APP_SOLANA_WS_URL!;
     const wallets = [
         new PhantomWalletAdapter(),
         new GlowWalletAdapter(),
@@ -57,7 +63,7 @@ const Context: FC<{ children: ReactNode }> = ({ children }) => {
     );
 
     return (
-        <ConnectionProvider endpoint={endpoint!}>
+        <ConnectionProvider endpoint={endpoint!} config={{ wsEndpoint }}>
             <WalletProvider wallets={wallets} onError={onError} autoConnect>
                 <WalletDialogProvider>{children}</WalletDialogProvider>
             </WalletProvider>
@@ -68,6 +74,7 @@ const Context: FC<{ children: ReactNode }> = ({ children }) => {
 const Content: FC = () => {
     const connection = useConnection();
     const wallet = useWallet();
+    const anchorWallet = useAnchorWallet();
 
     const [open, setOpen] = React.useState(false);
     const [candidates, setCandidates] = React.useState<string[]>([]);
@@ -105,6 +112,16 @@ const Content: FC = () => {
         );
     }
 
+    const program = new Program(
+        idl as any as Voting,
+        PROGRAM_ID,
+        new AnchorProvider(
+            connection.connection,
+            anchorWallet!,
+            AnchorProvider.defaultOptions()
+        )
+    );
+
     const openVotingModal = (
         candidates: string[],
         electionId: number,
@@ -128,6 +145,7 @@ const Content: FC = () => {
             <ElectionsTable
                 openVotingModal={openVotingModal}
                 connection={connection.connection}
+                program={program}
                 voter={wallet.publicKey!}
                 organization={organization}
                 organizationPda={organizationPda!}

@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "scripts": {
         "clean": "shx rm -rf dist .parcel-cache src/voting-client",
+        "idl": "shx mkdir -p src/idl && shx cp ../contract/target/idl/voting.json ../contract/target/types/voting.ts src/idl",
         "build:client": "anchor-client-gen ../contract/target/idl/voting.json src/voting-client",
         "build": "yarn clean && yarn build:client && parcel build src/index.html",
         "start": "yarn clean && yarn build:client && parcel src/index.html",
@@ -22,7 +23,9 @@
         "@solana/wallet-adapter-react": "^0.15.3",
         "@solana/wallet-adapter-wallets": "^0.16.0",
         "@solana/web3.js": "^1.36.0",
+        "@types/memoizee": "^0.4.8",
         "anchor-client-gen": "^0.24.0",
+        "memoizee": "^0.4.15",
         "notistack": "^2.0.0",
         "react": "^17.0.0",
         "react-dom": "^17.0.0"

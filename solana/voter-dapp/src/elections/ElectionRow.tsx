@@ -1,26 +1,25 @@
-import {
-    Button,
-    TableCell,
-    TableRow,
-    Tooltip,
-    Typography,
-} from "@mui/material";
+import { TableCell, TableRow, Typography } from "@mui/material";
+import { BN, Program } from "@project-serum/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
 import React from "react";
-import { ElectionData, VoterData } from "../voting-client/accounts";
+import { Voting } from "../idl/voting";
+import { ElectionData } from "../voting-client/accounts";
 import { findPda } from "./utils";
+import VoteButton from "./VoteButton";
+import memoizee from "memoizee";
 
 function ElectionRow({
     organization,
     electionId,
     connection,
+    program,
     voter,
     openVotingModal,
 }: {
     organization: PublicKey;
     electionId: number;
     connection: Connection;
+    program: Program<Voting>;
     voter: PublicKey;
     openVotingModal: (
         candidates: string[],
@@ -31,9 +30,6 @@ function ElectionRow({
 }) {
     const [electionPda, setElectionPda] = React.useState<PublicKey>();
     const [election, setElection] = React.useState<ElectionData>();
-    const [voterPda, setVoterPda] = React.useState<PublicKey>();
-    const [canVote, setCanVote] = React.useState(false);
-    const [helpMessage, setHelpMessage] = React.useState("Loading...");
 
     React.useEffect(() => {
         findPda(`${organization}_election_data_${electionId}`).then(
@@ -52,31 +48,34 @@ function ElectionRow({
             setElection(data);
         });
     }, [connection, electionPda]);
-
     React.useEffect(() => {
-        findPda(`${organization}_${electionId}_voter_data_${voter}`).then(
-            setVoterPda
+        console.log(`Adding event listener for ${electionId}`);
+        const listener = program.addEventListener(
+            "Voted",
+            memoizee(
+                (event) => {
+                    setElection((e) => {
+                        if (event.electionId.toNumber() !== electionId || !e) {
+                            return;
+                        }
+                        console.log(`Voted: ${JSON.stringify(event)}`);
+                        e.results[event.candidateId] = e.results[
+                            event.candidateId
+                        ].add(new BN(1));
+                        return new ElectionData(e);
+                    });
+                },
+                {
+                    normalizer: ([event]) => JSON.stringify(event),
+                }
+            )
         );
-    }, [electionId, organization, voter]);
-    React.useEffect(() => {
-        if (!election || !voterPda) {
-            return;
-        }
-        VoterData.fetch(connection, voterPda).then((data) => {
-            const voted = !!data;
-            const now = new BN(toSeconds(Date.now()));
-            if (voted) {
-                setHelpMessage("You've already voted.");
-            } else if (election.start > now) {
-                setHelpMessage("Election hasn't started yet.");
-            } else if (election.end < now) {
-                setHelpMessage("Election has already finished.");
-            } else {
-                setHelpMessage("");
-                setCanVote(true);
-            }
-        });
-    }, [connection, election, voterPda]);
+        return () => {
+            console.log(`Removing event listener for ${electionId}`);
+            program.removeEventListener(listener);
+        };
+    }, [electionId, program]);
+
     return (
         <TableRow>
             <TableCell>
@@ -96,32 +95,31 @@ function ElectionRow({
                 )) || []}
             </TableCell>
             <TableCell>
-                <Tooltip title={canVote ? "" : helpMessage}>
-                    <span>
-                        <Button
-                            onClick={() =>
-                                openVotingModal(
-                                    election?.candidates.map((name) => name) ||
-                                        [],
-                                    electionId,
-                                    electionPda!,
-                                    voterPda!
-                                )
-                            }
-                            variant="outlined"
-                            disabled={!canVote}
-                        >
-                            Vote
-                        </Button>
-                    </span>
-                </Tooltip>
+                <VoteButton
+                    organization={organization}
+                    electionId={electionId}
+                    connection={connection}
+                    voter={voter}
+                    election={election}
+                    electionPda={electionPda}
+                    openVotingModal={openVotingModal}
+                />
             </TableCell>
         </TableRow>
     );
 }
 
-function toSeconds(milliseconds: number): number {
-    return Math.floor(milliseconds / 1000);
+function fetchElection(
+    connection: Connection,
+    electionPda: PublicKey
+): Promise<ElectionData | undefined> {
+    return ElectionData.fetch(connection, electionPda).then((data) => {
+        if (!data) {
+            console.error(`Election ${electionPda} not initialized.`);
+            return;
+        }
+        return data;
+    });
 }
 
 export default ElectionRow;
