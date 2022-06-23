@@ -109,17 +109,4 @@ function ElectionRow({
     );
 }
 
-function fetchElection(
-    connection: Connection,
-    electionPda: PublicKey
-): Promise<ElectionData | undefined> {
-    return ElectionData.fetch(connection, electionPda).then((data) => {
-        if (!data) {
-            console.error(`Election ${electionPda} not initialized.`);
-            return;
-        }
-        return data;
-    });
-}
-
 export default ElectionRow;
