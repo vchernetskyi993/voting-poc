@@ -1,14 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 
-. scripts/enroll.sh
-. scripts/utils.sh
+. shell/enroll.sh
+. shell/utils.sh
 
 trapErrors
 
 # common args
 CA_USER=$GOV_CA_USER
 CA_PASSWORD=$GOV_CA_PASSWORD
-CA_HOST=localhost
+CA_HOST=gov_ca
 CA_PORT=7054
 CA_NAME=gov-ca
 
