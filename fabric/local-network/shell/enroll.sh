@@ -3,7 +3,7 @@
 . shell/utils.sh
 
 #######################################
-# Register and enroll node itself.
+# Register and enroll node and its administrator.
 # Globals:
 #   CA_HOST
 #   CA_PORT
