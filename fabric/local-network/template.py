@@ -10,7 +10,7 @@ def main(
         False, "--down", help="Generate docker-compose for clean up."
     )
 ):
-    keystores_initialized = False if down else os.path.exists("data/gov-orderer")
+    keystores_initialized = False if down else os.path.exists("data/gov/orderer")
     env = Environment(loader=FileSystemLoader("./"), trim_blocks=True)
 
     print(

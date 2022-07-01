@@ -5,22 +5,21 @@
 #######################################
 # Register and enroll node and its administrator.
 # Globals:
+#   ORG
 #   CA_HOST
 #   CA_PORT
 #   CA_USER
 #   CA_PASSWORD
-#   CA_NAME
 #   NODE_TYPE
 #   NODE_USER
 #   NODE_PASSWORD
-#   NODE_NAME
 #   NODE_ADMIN
 #   NODE_ADMIN_PASSWORD
 #######################################
 enroll() {
   CA_URL=$CA_HOST:$CA_PORT
-  CA_CERT=/data/${CA_NAME}/ca-cert.pem
-  NODE_DATA_PATH=/data/$NODE_NAME
+  CA_CERT=/data/$ORG/ca/ca-cert.pem
+  NODE_DATA_PATH=/data/$ORG/$NODE_TYPE
 
   fabric-ca-client enroll \
     -u https://"$CA_USER":"$CA_PASSWORD"@"$CA_URL" \
@@ -84,7 +83,8 @@ NodeOUs:
     -u https://"$NODE_USER":"$NODE_PASSWORD"@"$CA_URL" \
     -M "$NODE_DATA_PATH"/tls \
     --enrollment.profile tls \
-    --csr.hosts "$CA_HOST" \
+    --csr.hosts "$ORG"_"$NODE_TYPE" \
+    --csr.hosts localhost \
     --tls.certfiles "$CA_CERT"
 
   cp "$NODE_DATA_PATH"/tls/signcerts/cert.pem "$NODE_DATA_PATH"/tls/server.crt

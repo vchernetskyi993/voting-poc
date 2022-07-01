@@ -21,7 +21,7 @@ services:
       - "17054:17054"
     command: sh -c 'fabric-ca-server start -b ${GOV_CA_USER}:${GOV_CA_PASSWORD} -d'
     volumes:
-      - ./data/gov-ca:/etc/hyperledger/fabric-ca-server
+      - ./data/gov/ca:/etc/hyperledger/fabric-ca-server
     container_name: gov_ca
     networks:
       - local  
@@ -44,7 +44,7 @@ services:
 
   gov_orderer:
     container_name: gov_orderer
-    image: hyperledger/fabric-orderer:2.2.6
+    image: hyperledger/fabric-orderer:2.4.4
     labels:
       service: hyperledger-fabric
     environment:
@@ -68,15 +68,15 @@ services:
       - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
       - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
       - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
-      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+      - ORDERER_ADMIN_LISTENADDRESS=gov_orderer:7053
       - ORDERER_OPERATIONS_LISTENADDRESS=gov_orderer:9443
       - ORDERER_METRICS_PROVIDER=prometheus
     working_dir: /root
     command: sh -c 'DATA_PATH=/var/hyperledger/orderer COMMAND=orderer /start-node.sh'
     volumes:
       - ./shell/start-node.sh:/start-node.sh
-      - ./data/gov-orderer:/var/hyperledger/orderer
-      - ./data/gov-orderer/production:/var/hyperledger/production/orderer
+      - ./data/gov/orderer:/var/hyperledger/orderer
+      - ./data/gov/orderer/production:/var/hyperledger/production/orderer
     ports:
       - 7050:7050
       - 7053:7053
@@ -93,7 +93,7 @@ services:
 
   gov_peer:
     container_name: gov_peer
-    image: hyperledger/fabric-peer:2.2.6
+    image: hyperledger/fabric-peer:2.4.4
     labels:
       service: hyperledger-fabric
     environment:
@@ -123,9 +123,9 @@ services:
     command: sh -c 'DATA_PATH=/etc/hyperledger/fabric COMMAND="peer node start" /start-node.sh'
     volumes:
       - ./shell/start-node.sh:/start-node.sh
-      - ./peercfg:/etc/hyperledger/peercfg
-      - ./data/gov-peer:/etc/hyperledger/fabric
-      - ./data/gov-peer/production:/var/hyperledger/production
+      - ./config/peer:/etc/hyperledger/peercfg
+      - ./data/gov/peer:/etc/hyperledger/fabric
+      - ./data/gov/peer/production:/var/hyperledger/production
     ports:
       - 7051:7051
       - 9444:9444
@@ -138,3 +138,21 @@ services:
     depends_on: 
       - nodes_initializer
 {% endif %}
+
+  channel_initializer:
+    build:
+      dockerfile: Dockerfile.alpine
+    env_file:
+      - .env
+    command: sh -c '/shell/create-channel.sh'
+    volumes:
+      - ./config/channel:/fabric/config
+      - ./data:/data
+      - ./shell:/shell
+      - ~/repo/fabric/fabric-samples/bin:/fabric/bin
+    container_name: channel_initializer
+    networks:
+      - local
+    depends_on: 
+      - gov_orderer
+      - gov_peer
