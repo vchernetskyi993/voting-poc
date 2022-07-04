@@ -1,7 +1,7 @@
 #!/bin/sh
 
 . shell/enroll.sh
-. shell/utils.sh
+. shell/shell-utils.sh
 
 trapErrors
 

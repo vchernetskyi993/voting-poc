@@ -115,7 +115,7 @@ services:
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
       - CORE_PEER_GOSSIP_BOOTSTRAP=gov_peer:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=gov_peer:7051
-      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_LOCALMSPID=Government
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
       - CORE_OPERATIONS_LISTENADDRESS=gov_peer:9444
       - CORE_METRICS_PROVIDER=prometheus
@@ -125,7 +125,7 @@ services:
     command: sh -c 'DATA_PATH=/etc/hyperledger/fabric COMMAND="peer node start" /start-node.sh'
     volumes:
       - ./shell/start-node.sh:/start-node.sh
-      - ./config/peer:/etc/hyperledger/peercfg
+      - ./config:/etc/hyperledger/peercfg
       - ./data/gov/peer:/etc/hyperledger/fabric
       - ./data/gov/peer/production:/var/hyperledger/production
     ports:
@@ -152,7 +152,7 @@ services:
       - FABRIC_BIN_PATH=/fabric/bin
     command: sh -c '/shell/create-channel.sh'
     volumes:
-      - ./config/channel:/fabric/config
+      - ./config:/fabric/config
       - ./data:/data
       - ./shell:/shell
       - ~/repo/fabric/fabric-samples/bin:/fabric/bin

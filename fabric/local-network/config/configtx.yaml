@@ -27,9 +27,7 @@ Organizations:
         ID: Government
 
         # MSPDir is the filesystem path which contains the MSP configuration.
-        MSPDir: ../../data/gov/orderer/msp
-        # MSPDir: ../../data/gov/peer/msp
-        # MSPDir: ../../data/gov/ca/msp
+        MSPDir: ../../data/gov/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually

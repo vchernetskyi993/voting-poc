@@ -1,6 +1,7 @@
 #!/bin/sh
 
-. shell/utils.sh
+. shell/shell-utils.sh
+. shell/fabric-utils.sh
 
 #######################################
 # Register and enroll node.
@@ -37,22 +38,7 @@ enrollNode() {
     --csr.hosts "$CA_HOST" \
     --tls.certfiles "$CA_CERT"
 
-  echo "
-NodeOUs:
-  Enable: true
-  ClientOUIdentifier:
-    Certificate: cacerts/$CA_HOST-$CA_PORT.pem
-    OrganizationalUnitIdentifier: client
-  PeerOUIdentifier:
-    Certificate: cacerts/$CA_HOST-$CA_PORT.pem
-    OrganizationalUnitIdentifier: peer
-  AdminOUIdentifier:
-    Certificate: cacerts/$CA_HOST-$CA_PORT.pem
-    OrganizationalUnitIdentifier: admin
-  OrdererOUIdentifier:
-    Certificate: cacerts/$CA_HOST-$CA_PORT.pem
-    OrganizationalUnitIdentifier: orderer
-" >"$DATA_PATH"/msp/config.yaml
+  writeOUconfig
 
   fabric-ca-client enroll \
     -u https://"$USERNAME":"$PASSWORD"@"$CA_URL" \
