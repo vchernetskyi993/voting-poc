@@ -31,6 +31,8 @@ services:
     image: hyperledger/fabric-ca:1.5.4
     env_file:
       - .env
+    environment:
+      - FABRIC_CA_CLIENT_HOME=/data/gov/ca-client
     command: sh -c '/shell/enroll-gov.sh'
     volumes:
       - ./data:/data
@@ -144,6 +146,10 @@ services:
       dockerfile: Dockerfile.alpine
     env_file:
       - .env
+    environment:
+      - FABRIC_CA_CLIENT_HOME=/data/gov/ca-client
+      - FABRIC_CFG_PATH=/fabric/config
+      - FABRIC_BIN_PATH=/fabric/bin
     command: sh -c '/shell/create-channel.sh'
     volumes:
       - ./config/channel:/fabric/config

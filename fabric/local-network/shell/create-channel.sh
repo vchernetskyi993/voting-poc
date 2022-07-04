@@ -1,36 +1,30 @@
 #!/bin/sh
 
-while [ ! -d "/data/gov/orderer/admin/msp" ] || [ ! -d "/data/gov/peer/admin/msp" ]; do
+while [ ! -d "/data/gov/orderer/msp" ] || [ ! -d "/data/gov/peer/msp" ]; do
   echo 'waiting for orderer and peer to become ready...'
   sleep 1
 done
 
-FABRIC_CFG_PATH=/fabric/config \
-  /fabric/bin/configtxgen \
+. shell/utils.sh
+
+trapErrors
+
+export PATH="$PATH":"$FABRIC_BIN_PATH"
+
+infoln "------ Generating genesis block ------"
+
+configtxgen \
   -profile VotingAppChannelEtcdRaft \
   -outputBlock /data/channel-artifacts/genesis_voting.pb \
   -channelID voting
 
-/fabric/bin/osnadmin channel join \
+infoln "------ Joining orderer ------"
+
+osnadmin channel join \
   --channelID voting \
   --config-block /data/channel-artifacts/genesis_voting.pb \
   -o gov_orderer:7053 \
   --ca-file /data/gov/ca/ca-cert.pem \
   --client-cert /data/gov/orderer/tls/server.crt \
   --client-key /data/gov/orderer/tls/server.key
-
-# /fabric/bin/osnadmin channel join \
-#   --channelID voting \
-#   --config-block /data/channel-artifacts/genesis_voting.pb \
-#   -o gov_orderer:7053 \
-#   --ca-file /data/gov/orderer/tls/ca.crt \
-#   --client-cert /data/gov/orderer/admin/msp/signcerts/* \
-#   --client-key /data/gov/orderer/admin/msp/keystore/*
-
-# /fabric/bin/osnadmin channel join \
-#   --channelID voting \
-#   --config-block /data/channel-artifacts/genesis_voting.pb \
-#   -o gov_orderer:7053 \
-#   --ca-file /data/gov/orderer/tls/ca.crt \
-#   --client-cert /data/gov/orderer/msp/signcerts/* \
-#   --client-key /data/gov/orderer/msp/keystore/*
+  # FIXME: "admin client signed certificate from the TLS CA" ???
