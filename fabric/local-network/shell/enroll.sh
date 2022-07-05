@@ -38,25 +38,26 @@ enrollNode() {
     --csr.hosts "$CA_HOST" \
     --tls.certfiles "$CA_CERT"
 
-  writeOUconfig
+  CA_FILE_NAME=ca-$ORG-$CA_PORT writeOUconfig
 
   fabric-ca-client enroll \
     -u https://"$USERNAME":"$PASSWORD"@"$CA_URL" \
     -M "$DATA_PATH"/tls \
     --enrollment.profile tls \
-    --csr.hosts "$ORG"_"$NODE_TYPE" \
+    --csr.hosts "$NODE_TYPE"."$ORG" \
     --csr.hosts localhost \
     --tls.certfiles "$CA_CERT"
 
   cp "$DATA_PATH"/tls/signcerts/cert.pem "$DATA_PATH"/tls/server.crt
   cp "$DATA_PATH"/tls/keystore/* "$DATA_PATH"/tls/server.key
-  cp "$DATA_PATH"/tls/tlscacerts/tls-"$CA_HOST"-"$CA_PORT".pem "$DATA_PATH"/tls/ca.crt
+  cp "$DATA_PATH"/tls/tlscacerts/tls-ca-"$ORG"-"$CA_PORT".pem "$DATA_PATH"/tls/ca.crt
 }
 
 #######################################
 # Register and enroll administrator.
 # Globals:
 #   ORG
+#   CA_PORT
 #   CA_URL
 #   CA_CERT
 #   USERNAME
@@ -67,7 +68,7 @@ enrollAdmin() {
 
   infoln "--- Registering admin ---"
 
-  fabric-ca-client register \
+  fabric-ca-client register -d \
     --url "https://$CA_URL" \
     --id.name "$USERNAME" \
     --id.secret "$PASSWORD" \
@@ -80,4 +81,6 @@ enrollAdmin() {
     -u https://"$USERNAME":"$PASSWORD"@"$CA_URL" \
     -M "$DATA_PATH"/msp \
     --tls.certfiles "$CA_CERT"
+
+  CA_FILE_NAME=ca-$ORG-$CA_PORT writeOUconfig
 }

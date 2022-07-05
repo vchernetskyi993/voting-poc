@@ -49,7 +49,7 @@ Organizations:
         # OrdererEndpoints is a list of all orderers this org runs which clients
         # and peers may to connect to to push transactions and receive blocks respectively.
         OrdererEndpoints:
-            - gov_orderer:7050
+            - orderer.gov:7050
 
 ################################################################################
 #
@@ -242,7 +242,7 @@ Orderer: &OrdererDefaults
     # as TLS validation.  The preferred way to specify orderer addresses is now
     # to include the OrdererEndpoints item in your org definition
     Addresses:
-        - gov_orderer:7050
+        - orderer.gov:7050
 
     # Batch Timeout: The amount of time to wait before creating a batch.
     BatchTimeout: 2s
@@ -293,7 +293,7 @@ Orderer: &OrdererDefaults
         # a subset of the host:port items enumerated in this list should be
         # replicated under the Orderer.Addresses key above.
         Consenters:
-            - Host: gov_orderer
+            - Host: orderer.gov
               Port: 7050
               ClientTLSCert: ../../data/gov/orderer/tls/server.crt
               ServerTLSCert: ../../data/gov/orderer/tls/server.crt

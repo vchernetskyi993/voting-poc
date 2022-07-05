@@ -15,21 +15,8 @@ TODO: gov network setup:
 * ~~1 CA~~
 * ~~1 orderer~~
 * ~~1 peer~~
-* create elections channel
+* ~~create elections channel~~
 * deploy contract that just stores text on ledger
-
-```
-cp ~/repo/fabric/fabric-samples/test-network/organizations/fabric-ca/ordererOrg/fabric-ca-server-config.yaml \
-    ./data/gov/ca/
-
-osnadmin channel join \
-  --channelID voting \
-  --config-block ./data/channel-artifacts/genesis_voting.pb \
-  -o localhost:7053 \
-  --ca-file ./data/gov/ca/ca-cert.pem \
-  --client-cert ./data/gov/orderer/tls/server.crt \
-  --client-key ./data/gov/orderer/tls/server.key
-```
 
 ## Add new party
 
