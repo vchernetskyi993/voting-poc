@@ -2,7 +2,7 @@ import java.net.URI
 
 plugins {
     kotlin("jvm") version "1.7.0"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    kotlin("plugin.serialization") version "1.7.0"
     application
 }
 
@@ -19,4 +19,5 @@ application {
 
 dependencies {
     implementation("org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
 }

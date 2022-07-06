@@ -10,11 +10,28 @@ import org.hyperledger.fabric.contract.annotation.Transaction
 @Default
 class Contract : ContractInterface {
 
-    @Transaction(intent = Transaction.TYPE.SUBMIT, name = "StoreGreeting")
-    fun storeGreeting(ctx: Context, id: Long, value: String) =
-        ctx.stub.putStringState(id.toString(), value)
+    @Transaction(intent = Transaction.TYPE.SUBMIT, name = "CreateElection")
+    fun createElection(ctx: Context, electionJson: String): String = handleExceptions {
+        "Election created."
+    }
 
-    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "FetchGreeting")
-    fun fetchGreeting(ctx: Context, id: Long): String =
-        ctx.stub.getStringState(id.toString())
+    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "FetchElection")
+    fun fetchElection(ctx: Context, id: String): ElectionWithResults = handleExceptions {
+        TODO()
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "ElectionsCount")
+    fun electionsCount(ctx: Context): String = handleExceptions {
+        TODO()
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT, name = "Vote")
+    fun vote(ctx: Context, voteJson: String): Unit = handleExceptions {
+        TODO()
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "Voted")
+    fun voted(ctx: Context, electionId: String, userId: String): Boolean = handleExceptions {
+        true
+    }
 }
