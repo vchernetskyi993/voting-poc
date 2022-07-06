@@ -7,15 +7,17 @@ import typer
 
 def main(
     down: bool = typer.Option(
-        False, "--down", help="Generate docker-compose for clean up."
+        False, "--all", help="Generate docker-compose with all optional services"
     )
 ):
     keystores_initialized = False if down else os.path.exists("data/gov/orderer")
+    channel_initialized = False if down else os.path.exists("data/channel-artifacts")
     env = Environment(loader=FileSystemLoader("./"), trim_blocks=True)
 
     print(
         env.get_template("docker-compose.yaml.j2").render(
-            keystores_initialized=keystores_initialized
+            keystores_initialized=keystores_initialized,
+            channel_initialized=channel_initialized,
         )
     )
 

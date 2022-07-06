@@ -15,13 +15,15 @@ infoln() {
 #   * print function name, line name and error message.
 #######################################
 trapErrors() {
-  set -eE
+  set -e
+  # TODO: write analog for sh
+  # set -eE
 
-  failure() {
-    local func=$1
-    local line=$2
-    local msg=$3
-    echo "function '$func' failed at $line: $msg"
-  }
-  trap 'failure ${FUNCNAME} ${LINENO} "$BASH_COMMAND"' ERR
+  # failure() {
+  #   local func=$1
+  #   local line=$2
+  #   local msg=$3
+  #   echo "function '$func' failed at $line: $msg"
+  # }
+  # trap 'failure ${FUNCNAME} ${LINENO} "$BASH_COMMAND"' ERR
 }

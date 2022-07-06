@@ -1,3 +1,5 @@
-FROM alpine:3.16.0
+FROM gradle:jdk17-alpine
+
+WORKDIR /
 
 RUN apk add gcompat gettext curl

@@ -38,7 +38,7 @@ Organizations:
                 Rule: "OR('Government.admin', 'Government.peer', 'Government.client')"
             Writers:
                 Type: Signature
-                Rule: "OR('Government.admin', 'Government.client')"
+                Rule: "OR('Government.admin', 'Government.client', 'Government.orderer')"
             Admins:
                 Type: Signature
                 Rule: "OR('Government.admin')"

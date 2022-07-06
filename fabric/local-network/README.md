@@ -16,7 +16,7 @@ TODO: gov network setup:
 * ~~1 orderer~~
 * ~~1 peer~~
 * ~~create elections channel~~
-* deploy contract that just stores text on ledger
+* ~~deploy contract that just stores text on ledger~~
 
 ## Add new party
 
@@ -27,8 +27,41 @@ TODO: new party setup process:
 * receive & test chaincode
 * only government should be able to add new orgs
 
+## Transact using chaincode
+
+After successful network start you can interact with deployed contract.
+
+Set peer.gov variables:
+```bash
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID=Government
+export CORE_PEER_MSPCONFIGPATH=$PWD/data/gov/admin/msp
+export CORE_PEER_ADDRESS=localhost:7051
+export CORE_PEER_TLS_ROOTCERT_FILE=$PWD/data/gov/peer/tls/tlscacerts/tls-ca-gov-7054.pem
+```
+
+Store greeting:
+```bash
+peer chaincode invoke \
+    -o localhost:7050 \
+    --tls \
+    --cafile "$PWD/data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem" \
+    -C voting \
+    -n elections \
+    -c '{"function":"StoreGreeting","Args":["0", "Hello!"]}'
+```
+
+Retrieve stored greeting:
+```bash
+peer chaincode query \
+    -C voting \
+    -n elections \
+    -c '{"function":"FetchGreeting","Args":["0"]}'
+```
+
+
 ## Cleanup
 
-1. Stop and remove containers: `./template.py --down | docker compose -f - down`
+1. Stop and remove containers: `./template.py --all | docker compose -f - down`
 
 2. Remove services persistent data: `sudo rm -rf data`

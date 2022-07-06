@@ -140,7 +140,8 @@ services:
       - CORE_OPERATIONS_LISTENADDRESS=peer.gov:9444
       - CORE_METRICS_PROVIDER=prometheus
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer.gov"}
-      - CORE_CHAINCODE_EXECUTETIMEOUT=300s    
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=voting_fabric 
     working_dir: /root
     command: sh -c 'DATA_PATH=/etc/hyperledger/fabric COMMAND="peer node start" /start-node.sh'
     volumes:
@@ -148,6 +149,7 @@ services:
       - ./config:/etc/hyperledger/peercfg
       - ./data/gov/peer:/etc/hyperledger/fabric
       - ./data/gov/peer/production:/var/hyperledger/production
+      - /var/run:/var/run
     ports:
       - 7051:7051
       - 9444:9444
@@ -161,6 +163,7 @@ services:
       - nodes_initializer
 {% endif %}
 
+{% if not channel_initialized %}
   channel_initializer:
     build:
       dockerfile: Dockerfile.alpine
@@ -176,9 +179,11 @@ services:
       - ./data:/data
       - ./shell:/shell
       - ${FABRIC_BIN_PATH}:/fabric/bin
+      - ../chaincode:/chaincode
     container_name: channel_initializer
     networks:
       - local
     depends_on: 
       - orderer.gov
       - peer.gov
+{% endif %}
