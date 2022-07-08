@@ -24,9 +24,14 @@ TODO: new party setup process:
 
 After successful network start you can interact with deployed contract.
 
-Set peer.gov variables:
+Use peer admin:
 ```bash
+# set fabric variables
+export PATH=$PATH:~/repo/fabric/fabric-samples/bin
+export FABRIC_CFG_PATH=./config/
+# update data ownership
 sudo chown -R $USER:$USER data/
+# set peer variables
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_LOCALMSPID=Government
 export CORE_PEER_MSPCONFIGPATH=$PWD/data/gov/admin/msp
@@ -42,7 +47,7 @@ peer chaincode invoke \
     --cafile "$PWD/data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem" \
     -C voting \
     -n elections \
-    -c '{"function":"CreateElection","Args":["{\"id\":\"0\",\"value\":\"Hello!\"}"]}'
+    -c "$(jq -nc --argjson el "$(python generate-election.py)" '{"function":"CreateElection","Args":[$el | tostring]}')"
 ```
 
 Retrieve election with results:

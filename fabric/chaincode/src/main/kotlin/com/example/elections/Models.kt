@@ -6,9 +6,11 @@ import java.math.BigInteger
 
 @Serializable
 data class Election(
-    @Contextual
-    val id: BigInteger,
-    val value: String,
+    val start: Int,
+    val end: Int,
+    val title: String,
+    val description: String,
+    val candidates: List<String>,
 )
 
 @Serializable

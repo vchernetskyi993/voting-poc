@@ -3,7 +3,7 @@
 MAX_WAIT=5
 ATTEMPTS=1
 
-while [ ! -d "$DATA_PATH/tls" ]; do
+while [ ! -f "$DATA_PATH/tls/server.key" ]; do
   if [ $ATTEMPTS = $MAX_WAIT ]; then
     echo "No certificates generated. Exiting..."
     exit 1
