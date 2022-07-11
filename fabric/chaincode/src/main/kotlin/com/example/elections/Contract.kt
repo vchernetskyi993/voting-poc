@@ -28,15 +28,15 @@ class Contract : ContractInterface {
             election.candidates.size > 1
         }
 
-        val id = ctx.electionsCount().toString()
+        val id = ctx.electionsCount()
         ctx.saveElection(id, election)
         ctx.incrementElectionsCount()
-        id
+        id.toString()
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE, name = "FetchElection")
     fun fetchElection(ctx: Context, id: String): String = handleExceptions {
-        ctx.fetchElection(id).toJsonString()
+        ElectionWithResults(ctx.fetchElection(id.toBigInteger())).toJsonString()
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE, name = "ElectionsCount")
@@ -46,11 +46,23 @@ class Contract : ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT, name = "Vote")
     fun vote(ctx: Context, voteJson: String): Unit = handleExceptions {
-        TODO()
+        val vote: Vote = voteJson.toJsonEntity()
+        val election = ctx.fetchElection(vote.electionId)
+        expect("Election has not started yet") {
+            election.start < Instant.now().epochSecond
+        }
+        expect("Election has already ended") {
+            election.end > Instant.now().epochSecond
+        }
+        expect("User already voted") {
+            ctx.canVote(vote.electionId, vote.voterId)
+        }
+        ctx.incrementVotesCount(vote.electionId, vote.candidateId)
+        ctx.setVoted(vote.electionId, vote.voterId)
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE, name = "Voted")
-    fun voted(ctx: Context, electionId: String, userId: String): Boolean = handleExceptions {
-        TODO()
+    fun canVote(ctx: Context, electionId: String, userId: String): Boolean = handleExceptions {
+        ctx.canVote(electionId.toBigInteger(), userId.toBigInteger())
     }
 }
