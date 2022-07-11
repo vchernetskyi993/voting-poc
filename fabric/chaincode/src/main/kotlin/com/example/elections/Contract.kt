@@ -66,7 +66,7 @@ class Contract : ContractInterface {
         ctx.setVoted(vote.electionId, vote.voterId)
     }
 
-    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "Voted")
+    @Transaction(intent = Transaction.TYPE.EVALUATE, name = "CanVote")
     fun canVote(ctx: Context, electionId: String, userId: String): Boolean = handleExceptions {
         ctx.canVote(electionId.toBigInteger(), userId.toBigInteger())
     }

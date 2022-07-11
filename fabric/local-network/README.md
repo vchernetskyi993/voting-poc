@@ -39,6 +39,14 @@ export CORE_PEER_ADDRESS=localhost:7051
 export CORE_PEER_TLS_ROOTCERT_FILE=$PWD/data/gov/peer/tls/tlscacerts/tls-ca-gov-7054.pem
 ```
 
+Get elections count:
+```bash
+peer chaincode query \
+    -C voting \
+    -n elections \
+    -c '{"function":"ElectionsCount","Args":[]}'
+```
+
 Create election:
 ```bash
 peer chaincode invoke \
@@ -55,15 +63,26 @@ Retrieve election with results:
 peer chaincode query \
     -C voting \
     -n elections \
-    -c '{"function":"FetchElection","Args":["0"]}'
+    -c '{"function":"FetchElection","Args":["0"]}' | jq
 ```
 
-Check if user has already voted:
+Check if user can vote:
 ```bash
 peer chaincode query \
     -C voting \
     -n elections \
-    -c '{"function":"Voted","Args":["0", "0"]}'
+    -c '{"function":"CanVote","Args":["0", "0"]}'
+```
+
+Vote:
+```bash
+peer chaincode invoke \
+    -o localhost:7050 \
+    --tls \
+    --cafile "$PWD/data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem" \
+    -C voting \
+    -n elections \
+    -c '{"function":"Vote","Args":["{\"electionId\":\"0\",\"candidateId\":1,\"voterId\":\"0\"}"]}'
 ```
 
 
