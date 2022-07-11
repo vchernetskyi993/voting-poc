@@ -16,6 +16,9 @@ fun Context.saveElection(id: BigInteger, election: Election) =
 fun Context.fetchElection(id: BigInteger): Election =
     stub.getStringState(id.toString()).toJsonEntity()
 
+fun Context.votesCount(electionId: BigInteger, candidateId: Int): BigInteger =
+    getBigIntState(candidateKey(electionId, candidateId))
+
 fun Context.incrementVotesCount(electionId: BigInteger, candidateId: Int) {
     val key = candidateKey(electionId, candidateId)
     val state = getBigIntState(key)

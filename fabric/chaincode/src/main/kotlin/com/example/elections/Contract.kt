@@ -35,8 +35,13 @@ class Contract : ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE, name = "FetchElection")
-    fun fetchElection(ctx: Context, id: String): String = handleExceptions {
-        ElectionWithResults(ctx.fetchElection(id.toBigInteger())).toJsonString()
+    fun fetchElection(ctx: Context, idString: String): String = handleExceptions {
+        val id = idString.toBigInteger()
+        val election = ctx.fetchElection(id)
+        val results = election.candidates.asSequence()
+            .mapIndexed { i, _ -> Pair(i, ctx.votesCount(id, i)) }
+            .toMap()
+        ElectionWithResults(election, results).toJsonString()
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE, name = "ElectionsCount")

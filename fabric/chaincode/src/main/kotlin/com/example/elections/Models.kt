@@ -15,7 +15,8 @@ data class Election(
 
 @Serializable
 data class ElectionWithResults(
-    val data: Election
+    val data: Election,
+    val results: Map<Int, @Contextual BigInteger>,
 )
 
 @Serializable

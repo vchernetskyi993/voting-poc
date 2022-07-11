@@ -158,13 +158,21 @@ class ContractTest {
         fun `Should fetch election`() {
             // given
             val input = election()
+            every { stub.getStringState(any()) } returns ""
             every { stub.getStringState(ELECTION_ID) } returns input.toString()
+            every { stub.getStringState(CANDIDATE_KEY) } returns "2"
 
             // when
             val actual = contract.fetchElection(ctx, ELECTION_ID)
 
             // then
-            val expected = buildJsonObject { put("data", input) }.toString()
+            val expected = buildJsonObject {
+                put("data", input)
+                put("results", buildJsonObject {
+                    put("0", "0")
+                    put(CANDIDATE_ID.toString(), "2")
+                })
+            }.toString()
             actual shouldBe expected
         }
 
