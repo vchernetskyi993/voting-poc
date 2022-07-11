@@ -9,13 +9,18 @@ We use Python script to generate `docker-compose.yaml` from `Jinja2` template.
 1. Install python script requirements: `pip install -r requirements.txt`.
 As usual, it's recommended to use virtualenv for this.
 
-2. Start services: `./template.py | docker compose -f - up`
+2. Generate compose file: `./template.py --orgs gov,rev,con > docker-compose.yaml`
+
+3. Start network: `docker compose up`
+
+Docker compose:
+* starts containers for 3 organizations
+* creates voting channel
+* deploys elections chaincode
 
 ## Add new party
 
 TODO: new party setup process:
-* 1 CA
-* 1 peer
 * join elections channel
 * receive & test chaincode
 * only government should be able to add new orgs
@@ -88,6 +93,6 @@ peer chaincode invoke \
 
 ## Cleanup
 
-1. Stop and remove containers: `./template.py --all | docker compose -f - down`
+1. Stop and remove containers: `docker compose down`
 
 2. Remove services persistent data: `sudo rm -rf data`

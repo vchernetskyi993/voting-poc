@@ -5,26 +5,27 @@ networks:
     name: voting_fabric
 
 services:
-  ca_initializer:
+{% for org in orgs %}
+  {{ org.key }}_ca_initializer:
     build:
       dockerfile: Dockerfile.alpine
     labels:
       service: hyperledger-fabric
     environment:
-      - CA_USER=${GOV_CA_USER}
-      - CA_PASSWORD=${GOV_CA_PASSWORD}
+      - CA_USER=${ {{- org.key.upper() }}_CA_USER}
+      - CA_PASSWORD=${ {{- org.key.upper() }}_CA_PASSWORD}
     command: sh -c "
       envsubst 
-        < /config/gov-ca-server-config.yaml 
+        < /config/{{ org.key }}-ca-server-config.yaml 
         \> /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml"
     volumes:
-      - ./data/gov/ca:/etc/hyperledger/fabric-ca-server
+      - ./data/{{ org.key }}/ca:/etc/hyperledger/fabric-ca-server
       - ./config/ca:/config
-    container_name: ca_initializer
+    container_name: {{ org.key }}_ca_initializer
     networks:
       - local
 
-  ca.gov:
+  ca.{{ org.key }}:
     image: hyperledger/fabric-ca:1.5.4
     labels:
       service: hyperledger-fabric
@@ -32,38 +33,47 @@ services:
       - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
       - FABRIC_CA_SERVER_OPERATIONS_LISTENADDRESS=0.0.0.0:17054
     ports:
-      - "7054:7054"
-      - "17054:17054"
+      - "{{ org.ca_port }}:7054"
+      - "1{{ org.ca_port }}:17054"
     command: sh -c 'fabric-ca-server start -d'
     volumes:
-      - ./data/gov/ca:/etc/hyperledger/fabric-ca-server
-    container_name: ca.gov
+      - ./data/{{ org.key }}/ca:/etc/hyperledger/fabric-ca-server
+    container_name: ca.{{ org.key }}
     networks:
       - local
     depends_on: 
-      - ca_initializer
+      - {{ org.key }}_ca_initializer
 
-{% if not keystores_initialized %}
-  nodes_initializer:
+{% if not org.keystores_initialized %}
+  {{ org.key }}_nodes_initializer:
     build:
       dockerfile: Dockerfile.alpine
-    env_file:
-      - .env
     environment:
-      - FABRIC_CA_CLIENT_HOME=/data/gov/ca-client
+      - FABRIC_CA_CLIENT_HOME=/data/{{ org.key }}/ca-client
       - FABRIC_BIN_PATH=/fabric/bin
-    command: sh -c '/shell/enroll-gov.sh'
+      - ORG={{ org.key }}
+      - CA_USER=${ {{- org.key.upper() }}_CA_USER}
+      - CA_PASSWORD=${ {{- org.key.upper() }}_CA_PASSWORD}
+      - ADMIN_USER=${ {{- org.key.upper() }}_ADMIN_USER}
+      - ADMIN_PASSWORD=${ {{- org.key.upper() }}_ADMIN_PASSWORD}
+      - SHOULD_ENROLL_ORDERER={{ "true" if org.key == "gov" else "false" }}
+      - ORDERER_USER=${ {{- org.key.upper() }}_ORDERER_USER}
+      - ORDERER_PASSWORD=${ {{- org.key.upper() }}_ORDERER_PASSWORD}
+      - PEER_USER=${ {{- org.key.upper() }}_PEER_USER}
+      - PEER_PASSWORD=${ {{- org.key.upper() }}_PEER_PASSWORD}
+    command: sh -c '/shell/enroll-org.sh'
     volumes:
       - ./data:/data
       - ./shell:/shell
       - ${FABRIC_BIN_PATH}:/fabric/bin
-    container_name: nodes_initializer
+    container_name: {{ org.key }}_nodes_initializer
     networks:
       - local
     depends_on: 
-      - ca.gov
+      - ca.{{ org.key }}
 {% endif %}
 
+{% if org.key == "gov" %}
   orderer.gov:
     container_name: orderer.gov
     image: hyperledger/fabric-orderer:2.4.4
@@ -105,16 +115,17 @@ services:
       - 9443:9443
     networks:
       - local
-{% if keystores_initialized %}
+  {% if org.keystores_initialized %}
     depends_on: 
       - ca.gov
-{% else %}
+  {% else %}
     depends_on: 
-      - nodes_initializer
+      - gov_nodes_initializer
+  {% endif %}
 {% endif %}
 
-  peer.gov:
-    container_name: peer.gov
+  peer.{{ org.key }}:
+    container_name: peer.{{ org.key }}
     image: hyperledger/fabric-peer:2.4.4
     labels:
       service: hyperledger-fabric
@@ -128,18 +139,18 @@ services:
       - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
       # Peer specific variables
-      - CORE_PEER_ID=peer.gov
-      - CORE_PEER_ADDRESS=peer.gov:7051
+      - CORE_PEER_ID=peer.{{ org.key }}
+      - CORE_PEER_ADDRESS=peer.{{ org.key }}:7051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
-      - CORE_PEER_CHAINCODEADDRESS=peer.gov:7052
+      - CORE_PEER_CHAINCODEADDRESS=peer.{{ org.key }}:7052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer.gov:7051
-      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer.gov:7051
-      - CORE_PEER_LOCALMSPID=Government
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer.{{ org.key }}:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer.{{ org.key }}:7051
+      - CORE_PEER_LOCALMSPID={{ org.msp_id }}
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
-      - CORE_OPERATIONS_LISTENADDRESS=peer.gov:9444
+      - CORE_OPERATIONS_LISTENADDRESS=peer.{{ org.key }}:9444
       - CORE_METRICS_PROVIDER=prometheus
-      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer.gov"}
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer.{{ org.key }}"}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=voting_fabric 
     working_dir: /root
@@ -147,23 +158,23 @@ services:
     volumes:
       - ./shell/start-node.sh:/start-node.sh
       - ./config:/etc/hyperledger/peercfg
-      - ./data/gov/peer:/etc/hyperledger/fabric
-      - ./data/gov/peer/production:/var/hyperledger/production
+      - ./data/{{ org.key }}/peer:/etc/hyperledger/fabric
+      - ./data/{{ org.key }}/peer/production:/var/hyperledger/production
       - /var/run:/var/run
     ports:
-      - 7051:7051
-      - 9444:9444
+      - "{{ org.peer_port }}:7051"
+      - "{{ org.peer_operations_port }}:9444"
     networks:
       - local
-{% if keystores_initialized %}
-    depends_on: 
-      - ca.gov
+{% if org.keystores_initialized %}
+    depends_on:
+      - ca.{{ org.key }}
 {% else %}
     depends_on: 
-      - nodes_initializer
+      - {{ org.key }}_nodes_initializer
 {% endif %}
 
-{% if not channel_initialized %}
+{% if org.key == "gov" and not channel_initialized %}
   channel_initializer:
     build:
       dockerfile: Dockerfile.alpine
@@ -187,3 +198,5 @@ services:
       - orderer.gov
       - peer.gov
 {% endif %}
+
+{% endfor %}
