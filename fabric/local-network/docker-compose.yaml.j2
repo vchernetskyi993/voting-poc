@@ -4,8 +4,10 @@ networks:
   local:
     name: voting_fabric
 
+{# TODO: split template #}
+
 services:
-{% for org in orgs %}
+{% for org in orgs.values() %}
   {{ org.key }}_ca_initializer:
     build:
       dockerfile: Dockerfile.alpine
@@ -157,7 +159,7 @@ services:
     command: sh -c 'DATA_PATH=/etc/hyperledger/fabric COMMAND="peer node start" /start-node.sh'
     volumes:
       - ./shell/start-node.sh:/start-node.sh
-      - ./config:/etc/hyperledger/peercfg
+      - ./config/peer:/etc/hyperledger/peercfg
       - ./data/{{ org.key }}/peer:/etc/hyperledger/fabric
       - ./data/{{ org.key }}/peer/production:/var/hyperledger/production
       - /var/run:/var/run
@@ -174,19 +176,17 @@ services:
       - {{ org.key }}_nodes_initializer
 {% endif %}
 
-{% if org.key == "gov" and not channel_initialized %}
+{% endfor %}
+
+{% if not channel_initialized %}
   channel_initializer:
     build:
       dockerfile: Dockerfile.alpine
-    env_file:
-      - .env
     environment:
-      - FABRIC_CA_CLIENT_HOME=/data/gov/ca-client
-      - FABRIC_CFG_PATH=/fabric/config
       - FABRIC_BIN_PATH=/fabric/bin
     command: sh -c '/shell/create-channel.sh'
     volumes:
-      - ./config:/fabric/config
+      - ./config:/config
       - ./data:/data
       - ./shell:/shell
       - ${FABRIC_BIN_PATH}:/fabric/bin
@@ -197,6 +197,28 @@ services:
     depends_on: 
       - orderer.gov
       - peer.gov
+
+{% if "rev" in orgs %}
+  add_rev_org:
+    build:
+      dockerfile: Dockerfile.alpine
+    environment:
+      - FABRIC_BIN_PATH=/fabric/bin
+      - ORG=rev
+      - MSP_ID=Revolutionaries
+    command: sh -c '/shell/add-org.sh'
+    volumes:
+      - ./config:/config
+      - ./data:/data
+      - ./shell:/shell
+      - ${FABRIC_BIN_PATH}:/fabric/bin
+    container_name: add_rev_org
+    networks:
+      - local
+    depends_on: 
+      - channel_initializer
 {% endif %}
 
-{% endfor %}
+{# TODO: add conservatives to channel #}
+
+{% endif %}

@@ -18,13 +18,6 @@ Docker compose:
 * creates voting channel
 * deploys elections chaincode
 
-## Add new party
-
-TODO: new party setup process:
-* join elections channel
-* receive & test chaincode
-* only government should be able to add new orgs
-
 ## Transact using chaincode
 
 After successful network start you can interact with deployed contract.
@@ -33,15 +26,24 @@ Use peer admin:
 ```bash
 # set fabric variables
 export PATH=$PATH:~/repo/fabric/fabric-samples/bin
-export FABRIC_CFG_PATH=./config/
+export FABRIC_CFG_PATH=./config/peer
 # update data ownership
 sudo chown -R $USER:$USER data/
 # set peer variables
+ORG=gov
+MSP_ID=Government
+PORT=7051
+# ORG=rev
+# MSP_ID=Revolutionaries
+# PORT=8051
+# ORG=con
+# MSP_ID=Conservatives
+# PORT=9051
 export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_LOCALMSPID=Government
-export CORE_PEER_MSPCONFIGPATH=$PWD/data/gov/admin/msp
-export CORE_PEER_ADDRESS=localhost:7051
-export CORE_PEER_TLS_ROOTCERT_FILE=$PWD/data/gov/peer/tls/tlscacerts/tls-ca-gov-7054.pem
+export CORE_PEER_LOCALMSPID=$MSP_ID
+export CORE_PEER_MSPCONFIGPATH=$PWD/data/$ORG/admin/msp
+export CORE_PEER_ADDRESS=localhost:$PORT
+export CORE_PEER_TLS_ROOTCERT_FILE=$PWD/data/$ORG/peer/tls/tlscacerts/tls-ca-$ORG-7054.pem
 ```
 
 Get elections count:
@@ -52,6 +54,7 @@ peer chaincode query \
     -c '{"function":"ElectionsCount","Args":[]}'
 ```
 
+<!-- TODO: add anchor peers, then endorsements should be collected automatically -->
 Create election:
 ```bash
 peer chaincode invoke \
@@ -60,7 +63,11 @@ peer chaincode invoke \
     --cafile "$PWD/data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem" \
     -C voting \
     -n elections \
-    -c "$(jq -nc --argjson el "$(python generate-election.py)" '{"function":"CreateElection","Args":[$el | tostring]}')"
+    -c "$(jq -nc --argjson el "$(python generate-election.py)" '{"function":"CreateElection","Args":[$el | tostring]}')" \
+    --peerAddresses localhost:7051 \
+    --tlsRootCertFiles $PWD/data/gov/peer/tls/server.crt \
+    --peerAddresses localhost:8051 \
+    --tlsRootCertFiles $PWD/data/rev/peer/tls/server.crt
 ```
 
 Retrieve election with results:

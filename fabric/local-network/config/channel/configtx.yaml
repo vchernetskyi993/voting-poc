@@ -376,8 +376,8 @@ Channel: &ChannelDefaults
             Rule: "ANY Writers"
         # By default, who may modify elements at this config level
         Admins:
-            Type: ImplicitMeta
-            Rule: "MAJORITY Admins"
+            Type: Signature
+            Rule: "OR('Government.admin')"
 
 
     # Capabilities describes the channel level capabilities, see the

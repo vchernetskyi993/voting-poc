@@ -1,7 +1,10 @@
 #!/bin/sh
 
+. shell/shell-utils.sh
+. shell/fabric-utils.sh
+
 MAX_WAIT=5
-ATTEMPTS=1
+ATTEMPTS=0
 
 while [ ! -d "/data/gov/orderer/tls" ] || [ ! -d "/data/gov/peer/production/ledgersData" ]; do
   if [ $ATTEMPTS = $MAX_WAIT ]; then
@@ -14,22 +17,17 @@ while [ ! -d "/data/gov/orderer/tls" ] || [ ! -d "/data/gov/peer/production/ledg
   fi
 done
 
-. shell/shell-utils.sh
-. shell/fabric-utils.sh
-
 trapErrors
 
 export PATH="$PATH":"$FABRIC_BIN_PATH"
 
 infoln "------ Preparing Gov MSP ------"
 
-mkdir -p /data/gov/msp/cacerts /data/gov/msp/tlscacerts
-cp /data/gov/ca/ca-cert.pem /data/gov/msp/cacerts
-cp /data/gov/ca/ca-cert.pem /data/gov/msp/tlscacerts
-CA_FILE_NAME=ca-cert DATA_PATH=/data/gov writeOUconfig
+ORG=gov prepareOrgMsp
 
 infoln "------ Generating genesis block ------"
 
+export FABRIC_CFG_PATH=/config/channel
 GENESIS_BLOCK=/data/channel-artifacts/genesis_voting.pb
 
 configtxgen \
@@ -49,11 +47,7 @@ osnadmin channel join \
 
 sleep 2
 
-export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_LOCALMSPID=Government
-export CORE_PEER_MSPCONFIGPATH=/data/gov/admin/msp
-export CORE_PEER_ADDRESS=peer.gov:7051
-export CORE_PEER_TLS_ROOTCERT_FILE=/data/gov/peer/tls/tlscacerts/tls-ca-gov-7054.pem
+ORG=gov MSP_ID=Government useOrgAdmin
 
 peer channel join -b $GENESIS_BLOCK
 
@@ -72,21 +66,7 @@ gradle clean
 
 infoln "------ Deploying chaincode ------"
 
-peer lifecycle chaincode install /data/channel-artifacts/cc.tar.gz >/data/log 2>&1
-
-cat /data/log
-
-PACKAGE_ID=$(tail -n 1 /data/log | awk '{print $NF}')
-
-peer lifecycle chaincode approveformyorg \
-  -o orderer.gov:7050 \
-  --tls \
-  --cafile /data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem \
-  --channelID voting \
-  --name elections \
-  --version 0.1.0 \
-  --package-id "$PACKAGE_ID" \
-  --sequence 1
+approveChaincode
 
 peer lifecycle chaincode commit \
   -o orderer.gov:7050 \

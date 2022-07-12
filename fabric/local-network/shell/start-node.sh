@@ -1,7 +1,7 @@
 #!/bin/sh
 
 MAX_WAIT=5
-ATTEMPTS=1
+ATTEMPTS=0
 
 while [ ! -f "$DATA_PATH/tls/server.key" ]; do
   if [ $ATTEMPTS = $MAX_WAIT ]; then

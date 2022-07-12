@@ -17,7 +17,7 @@ def main(
 
     print(
         env.get_template("docker-compose.yaml.j2").render(
-            orgs=[org_data(org, i) for (i, org) in enumerate(orgs.split(","))],
+            orgs={org: org_data(org, i) for (i, org) in enumerate(orgs.split(","))},
             channel_initialized=channel_initialized,
         )
     )

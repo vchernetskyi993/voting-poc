@@ -2,4 +2,4 @@ FROM gradle:jdk17-alpine
 
 WORKDIR /
 
-RUN apk add gcompat gettext curl
+RUN apk add gcompat gettext curl jq

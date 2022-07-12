@@ -14,7 +14,7 @@ CA_CERT=/data/$ORG/ca/ca-cert.pem
 export PATH="$PATH":"$FABRIC_BIN_PATH"
 
 MAX_WAIT=5
-ATTEMPTS=1
+ATTEMPTS=0
 
 echo 'Checking if CA is ready...'
 while [ "$(curl -X 'GET' https://"$CA_URL"/api/v1/cainfo \
