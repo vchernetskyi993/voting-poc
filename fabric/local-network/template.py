@@ -14,11 +14,18 @@ def main(
 ):
     channel_initialized = False if all else os.path.exists("data/channel-artifacts")
     env = Environment(loader=FileSystemLoader("./"))
+    orgs_data = [org_data(org, i) for (i, org) in enumerate(orgs.split(","))]
 
     print(
         env.get_template("docker-compose.yaml.j2").render(
-            orgs={org: org_data(org, i) for (i, org) in enumerate(orgs.split(","))},
+            orgs=orgs_data,
             channel_initialized=channel_initialized,
+            parties=" ".join(
+                map(
+                    lambda org: f"{org.key},{org.msp_id}",
+                    filter(lambda org: org.key != "gov", orgs_data),
+                )
+            ),
         )
     )
 

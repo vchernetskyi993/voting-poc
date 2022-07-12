@@ -7,7 +7,7 @@ networks:
 {# TODO: split template #}
 
 services:
-{% for org in orgs.values() %}
+{% for org in orgs %}
   {{ org.key }}_ca_initializer:
     build:
       dockerfile: Dockerfile.alpine
@@ -198,27 +198,21 @@ services:
       - orderer.gov
       - peer.gov
 
-{% if "rev" in orgs %}
-  add_rev_org:
+  add_parties:
     build:
       dockerfile: Dockerfile.alpine
     environment:
       - FABRIC_BIN_PATH=/fabric/bin
-      - ORG=rev
-      - MSP_ID=Revolutionaries
-    command: sh -c '/shell/add-org.sh'
+      - ORGS={{ parties }}
+    command: sh -c '/shell/add-parties.sh'
     volumes:
       - ./config:/config
       - ./data:/data
       - ./shell:/shell
       - ${FABRIC_BIN_PATH}:/fabric/bin
-    container_name: add_rev_org
+    container_name: add_parties
     networks:
       - local
     depends_on: 
       - channel_initializer
-{% endif %}
-
-{# TODO: add conservatives to channel #}
-
 {% endif %}
