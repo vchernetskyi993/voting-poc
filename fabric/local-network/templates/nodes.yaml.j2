@@ -1,0 +1,32 @@
+{% if not org.keystores_initialized %}
+{{ org.key }}_nodes_initializer:
+  build:
+    dockerfile: Dockerfile.alpine
+  environment:
+    - FABRIC_CA_CLIENT_HOME=/data/{{ org.key }}/ca-client
+    - FABRIC_BIN_PATH=/fabric/bin
+    - ORG={{ org.key }}
+    - CA_USER=${ {{- org.key.upper() }}_CA_USER}
+    - CA_PASSWORD=${ {{- org.key.upper() }}_CA_PASSWORD}
+    - ADMIN_USER=${ {{- org.key.upper() }}_ADMIN_USER}
+    - ADMIN_PASSWORD=${ {{- org.key.upper() }}_ADMIN_PASSWORD}
+    - SHOULD_ENROLL_ORDERER={{ "true" if org.key == "gov" else "false" }}
+    - ORDERER_USER=${ {{- org.key.upper() }}_ORDERER_USER}
+    - ORDERER_PASSWORD=${ {{- org.key.upper() }}_ORDERER_PASSWORD}
+    - PEER_USER=${ {{- org.key.upper() }}_PEER_USER}
+    - PEER_PASSWORD=${ {{- org.key.upper() }}_PEER_PASSWORD}
+  command: sh -c '/shell/enroll-org.sh'
+  volumes:
+    - ./data:/data
+    - ./shell:/shell
+    - ${FABRIC_BIN_PATH}:/fabric/bin
+  container_name: {{ org.key }}_nodes_initializer
+  networks:
+    - local
+  depends_on: 
+    - ca.{{ org.key }}
+{% endif -%}
+
+{% include "templates/orderer.yaml.j2" %}
+
+{% include "templates/peer.yaml.j2" %}

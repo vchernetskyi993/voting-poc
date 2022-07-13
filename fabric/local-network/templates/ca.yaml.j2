@@ -1,0 +1,37 @@
+{{ org.key }}_ca_initializer:
+  build:
+    dockerfile: Dockerfile.alpine
+  labels:
+    service: hyperledger-fabric
+  environment:
+    - CA_USER=${ {{- org.key.upper() }}_CA_USER}
+    - CA_PASSWORD=${ {{- org.key.upper() }}_CA_PASSWORD}
+  command: sh -c "
+    envsubst 
+      < /config/{{ org.key }}-ca-server-config.yaml 
+      \> /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml"
+  volumes:
+    - ./data/{{ org.key }}/ca:/etc/hyperledger/fabric-ca-server
+    - ./config/ca:/config
+  container_name: {{ org.key }}_ca_initializer
+  networks:
+    - local
+
+ca.{{ org.key }}:
+  image: hyperledger/fabric-ca:1.5.4
+  labels:
+    service: hyperledger-fabric
+  environment:
+    - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+    - FABRIC_CA_SERVER_OPERATIONS_LISTENADDRESS=0.0.0.0:17054
+  ports:
+    - "{{ org.ca_port }}:7054"
+    - "1{{ org.ca_port }}:17054"
+  command: sh -c 'fabric-ca-server start -d'
+  volumes:
+    - ./data/{{ org.key }}/ca:/etc/hyperledger/fabric-ca-server
+  container_name: ca.{{ org.key }}
+  networks:
+    - local
+  depends_on: 
+    - {{ org.key }}_ca_initializer

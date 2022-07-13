@@ -1,0 +1,38 @@
+{% if not channel_initialized %}
+channel_initializer:
+  build:
+    dockerfile: Dockerfile.alpine
+  environment:
+    - FABRIC_BIN_PATH=/fabric/bin
+  command: sh -c '/shell/create-channel.sh'
+  volumes:
+    - ./config:/config
+    - ./data:/data
+    - ./shell:/shell
+    - ${FABRIC_BIN_PATH}:/fabric/bin
+    - ../chaincode:/chaincode
+  container_name: channel_initializer
+  networks:
+    - local
+  depends_on: 
+    - orderer.gov
+    - peer.gov
+
+add_parties:
+  build:
+    dockerfile: Dockerfile.alpine
+  environment:
+    - FABRIC_BIN_PATH=/fabric/bin
+    - ORGS={{ parties }}
+  command: sh -c '/shell/add-parties.sh'
+  volumes:
+    - ./config:/config
+    - ./data:/data
+    - ./shell:/shell
+    - ${FABRIC_BIN_PATH}:/fabric/bin
+  container_name: add_parties
+  networks:
+    - local
+  depends_on: 
+    - channel_initializer
+{% endif %}
