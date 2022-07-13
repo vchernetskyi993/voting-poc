@@ -54,7 +54,6 @@ peer chaincode query \
     -c '{"function":"ElectionsCount","Args":[]}'
 ```
 
-<!-- TODO: add anchor peers, then endorsements should be collected automatically -->
 Create election:
 ```bash
 peer chaincode invoke \

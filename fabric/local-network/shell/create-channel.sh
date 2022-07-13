@@ -23,7 +23,10 @@ export PATH="$PATH":"$FABRIC_BIN_PATH"
 
 infoln "------ Preparing Gov MSP ------"
 
-ORG=gov prepareOrgMsp
+ORG=gov
+MSP_ID=Government
+
+prepareOrgMsp
 
 infoln "------ Generating genesis block ------"
 
@@ -47,9 +50,11 @@ osnadmin channel join \
 
 sleep 2
 
-ORG=gov MSP_ID=Government useOrgAdmin
+useOrgAdmin
 
 peer channel join -b $GENESIS_BLOCK
+
+setAnchorPeer
 
 infoln "------ Building chaincode ------"
 

@@ -39,20 +39,7 @@ for ORG_DATA in $ORGS; do
 
   ORG=gov MSP_ID=Government useOrgAdmin
 
-  peer channel fetch config "$CHANNEL_DIR"/config_block.pb \
-    -o orderer.gov:7050 \
-    -c voting \
-    --tls \
-    --cafile /data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem
-
-  configtxlator proto_decode \
-    --input "$CHANNEL_DIR"/config_block.pb \
-    --type common.Block \
-    --output "$CHANNEL_DIR"/config_block.json
-
-  jq .data.data[0].payload.data.config \
-    "$CHANNEL_DIR"/config_block.json \
-    >"$CHANNEL_DIR"/config.json
+  CONFIG_DIR=$CHANNEL_DIR fetchChannelConfig
 
   export FABRIC_CFG_PATH=/config/channel/"$ORG"
   configtxgen -printOrg "$MSP_ID" >"$CHANNEL_DIR"/org_config.json
@@ -63,36 +50,7 @@ for ORG_DATA in $ORGS; do
     "$CHANNEL_DIR"/org_config.json \
     >"$CHANNEL_DIR"/modified_config.json
 
-  configtxlator proto_encode \
-    --input data/"$ORG"/channel/config.json \
-    --type common.Config \
-    --output data/"$ORG"/channel/config.pb
-
-  configtxlator proto_encode \
-    --input "$CHANNEL_DIR"/modified_config.json \
-    --type common.Config \
-    --output "$CHANNEL_DIR"/modified_config.pb
-
-  configtxlator compute_update \
-    --channel_id voting \
-    --original "$CHANNEL_DIR"/config.pb \
-    --updated "$CHANNEL_DIR"/modified_config.pb \
-    --output "$CHANNEL_DIR"/update.pb
-
-  configtxlator proto_decode \
-    --input "$CHANNEL_DIR"/update.pb \
-    --type common.ConfigUpdate \
-    --output "$CHANNEL_DIR"/update.json
-
-  jq -n \
-    --argjson upd "$(cat "$CHANNEL_DIR"/update.json)" \
-    '{"payload":{"header":{"channel_header":{"channel_id":"voting","type":2}},"data":{"config_update":$upd}}}' \
-    >"$CHANNEL_DIR"/update_in_envelope.json
-
-  configtxlator proto_encode \
-    --input "$CHANNEL_DIR"/update_in_envelope.json \
-    --type common.Envelope \
-    --output "$CHANNEL_DIR"/update_in_envelope.pb
+  CONFIG_DIR=$CHANNEL_DIR buildConfigUpdate
 
   infoln "------ Updating config ------"
 
@@ -112,6 +70,8 @@ for ORG_DATA in $ORGS; do
   useOrgAdmin
 
   peer channel join -b /data/channel-artifacts/genesis_voting.pb
+
+  setAnchorPeer
 
   infoln "------ Approving chaincode ------"
 

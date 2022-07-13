@@ -53,7 +53,7 @@ useOrgAdmin() {
 }
 
 #######################################
-# Installs and then approves chaincode package. 
+# Installs and then approves chaincode package.
 # Assumes that `useOrgAdmin` is already called.
 #######################################
 approveChaincode() {
@@ -72,4 +72,110 @@ approveChaincode() {
     --version 0.1.0 \
     --package-id "$PACKAGE_ID" \
     --sequence 1
+}
+
+#######################################
+# Fetch channel config and save result to CONFIG_DIR/config.json.
+# Globals:
+#   CONFIG_DIR
+# Outputs:
+#   CONFIG_DIR/config_block.pb encoded block config
+#   CONFIG_DIR/config_block.json decoded block config
+#   CONFIG_DIR/config.json decoded config without block metadata
+#######################################
+fetchChannelConfig() {
+  peer channel fetch config "$CONFIG_DIR"/config_block.pb \
+    -o orderer.gov:7050 \
+    -c voting \
+    --tls \
+    --cafile /data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem
+
+  configtxlator proto_decode \
+    --input "$CONFIG_DIR"/config_block.pb \
+    --type common.Block \
+    --output "$CONFIG_DIR"/config_block.json
+
+  jq .data.data[0].payload.data.config \
+    "$CONFIG_DIR"/config_block.json \
+    >"$CONFIG_DIR"/config.json
+}
+
+#######################################
+# Build encoded update file between CONFIG_DIR/config.json and CONFIG_DIR/modified_config.json.
+# Stores resulting update in CONFIG_DIR/update_in_envelope.pb.
+# Globals:
+#   CONFIG_DIR
+# Outputs:
+#   CONFIG_DIR/config.pb encoded config
+#   CONFIG_DIR/modified_config.pb encoded modified config
+#   CONFIG_DIR/update.pb encoded delta
+#   CONFIG_DIR/update.json decoded delta
+#   CONFIG_DIR/update_in_envelope.json decoded wrapped delta
+#   CONFIG_DIR/update_in_envelope.pb encoded wrapped delta
+#######################################
+buildConfigUpdate() {
+  configtxlator proto_encode \
+    --input "$CONFIG_DIR"/config.json \
+    --type common.Config \
+    --output "$CONFIG_DIR"/config.pb
+
+  configtxlator proto_encode \
+    --input "$CONFIG_DIR"/modified_config.json \
+    --type common.Config \
+    --output "$CONFIG_DIR"/modified_config.pb
+
+  configtxlator compute_update \
+    --channel_id voting \
+    --original "$CONFIG_DIR"/config.pb \
+    --updated "$CONFIG_DIR"/modified_config.pb \
+    --output "$CONFIG_DIR"/update.pb
+
+  configtxlator proto_decode \
+    --input "$CONFIG_DIR"/update.pb \
+    --type common.ConfigUpdate \
+    --output "$CONFIG_DIR"/update.json
+
+  jq -n \
+    --argjson upd "$(cat "$CONFIG_DIR"/update.json)" \
+    '{"payload":{"header":{"channel_header":{"channel_id":"voting","type":2}},"data":{"config_update":$upd}}}' \
+    >"$CONFIG_DIR"/update_in_envelope.json
+
+  configtxlator proto_encode \
+    --input "$CONFIG_DIR"/update_in_envelope.json \
+    --type common.Envelope \
+    --output "$CONFIG_DIR"/update_in_envelope.pb
+}
+
+#######################################
+# Set anchor peer for the organization.
+# Globals:
+#   ORG
+#   MSP_ID
+#######################################
+setAnchorPeer() {
+  ANCHOR_DIR=/data/"$ORG"/anchor
+  mkdir "$ANCHOR_DIR"
+
+  CONFIG_DIR=$ANCHOR_DIR fetchChannelConfig
+
+  jq '.channel_group.groups.Application.groups.'"$MSP_ID"'.values += {
+      "AnchorPeers": {
+        "mod_policy": "Admins",
+        "value":{
+          "anchor_peers": [{"host": "peer.'"$ORG"'","port": 7051}]
+        },
+        "version": "0"
+      }
+    }' \
+    "$ANCHOR_DIR"/config.json \
+    >"$ANCHOR_DIR"/modified_config.json
+
+  CONFIG_DIR=$ANCHOR_DIR buildConfigUpdate
+
+  peer channel update \
+    -f "$ANCHOR_DIR"/update_in_envelope.pb \
+    -c voting \
+    -o orderer.gov:7050 \
+    --tls \
+    --cafile /data/gov/orderer/tls/tlscacerts/tls-ca-gov-7054.pem
 }
