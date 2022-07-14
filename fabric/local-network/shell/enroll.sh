@@ -83,4 +83,8 @@ enrollAdmin() {
     --tls.certfiles "$CA_CERT"
 
   CA_FILE_NAME=ca-$ORG-$CA_PORT writeOUconfig
+
+  cp "$DATA_PATH"/msp/signcerts/cert.pem "$DATA_PATH"/msp/client.crt
+  cp "$DATA_PATH"/msp/keystore/* "$DATA_PATH"/msp/client.key
+  cp "$DATA_PATH"/msp/cacerts/ca-"$ORG"-"$CA_PORT".pem "$DATA_PATH"/msp/ca.crt
 }

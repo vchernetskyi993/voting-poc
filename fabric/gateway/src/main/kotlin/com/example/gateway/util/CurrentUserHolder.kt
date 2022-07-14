@@ -1,4 +1,4 @@
-package com.example.gateway.service
+package com.example.gateway.util
 
 import com.example.gateway.model.UserDetailsImpl
 import org.springframework.security.core.context.SecurityContextHolder

@@ -1,1 +1,11 @@
-
+app:
+  fabric:
+    channel: voting
+    contract: elections
+    peer:
+      address: ${FABRIC_PEER_ADDRESS:localhost:7051}
+      cert-path: ${FABRIC_PEER_CERT:../local-network/data/gov/peer/tls/server.crt}
+    client:
+      cert-path: ${FABRIC_CLIENT_CERT:../local-network/data/gov/admin/msp/client.crt}
+      key-path: ${FABRIC_CLIENT_CERT:../local-network/data/gov/admin/msp/client.key}
+    msp: Government
