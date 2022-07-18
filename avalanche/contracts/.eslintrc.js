@@ -20,6 +20,12 @@ module.exports = {
       "error",
       { ignores: ["modules"] },
     ],
+    "node/no-missing-import": [
+      "error",
+      {
+        tryExtensions: [".js", ".json", ".ts", ".d.ts"],
+      },
+    ],
     "@typescript-eslint/explicit-function-return-type": ["error"],
   },
 };
