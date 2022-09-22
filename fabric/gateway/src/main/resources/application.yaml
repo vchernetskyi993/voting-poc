@@ -7,5 +7,5 @@ app:
       cert-path: ${FABRIC_PEER_CERT:../local-network/data/gov/peer/tls/server.crt}
     client:
       cert-path: ${FABRIC_CLIENT_CERT:../local-network/data/gov/admin/msp/client.crt}
-      key-path: ${FABRIC_CLIENT_CERT:../local-network/data/gov/admin/msp/client.key}
+      key-path: ${FABRIC_CLIENT_KEY:../local-network/data/gov/admin/msp/client.key}
     msp: Government
