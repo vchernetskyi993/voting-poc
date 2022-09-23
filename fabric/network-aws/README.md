@@ -16,3 +16,12 @@ It is a [Maven](https://maven.apache.org/) based project, so you can open this p
  * `cdk docs`        open CDK documentation
 
 Enjoy!
+
+```shell
+aws ssm get-parameter \
+  --name /ec2/keypair/$(aws ec2 describe-key-pairs --key-names FabricEC2Key | jq -r ".KeyPairs[0].KeyPairId") \
+  --with-decryption \
+  | jq -r ".Parameter.Value" > e2c.pem
+
+chmod 400 e2c.pem
+```

@@ -2,6 +2,12 @@
 set -e
 set -x
 
+MEMBER_ID="{{MEMBER_ID}}"
+ORDERING_SERVICE_ENDPOINT="{{ORDERING_SERVICE_ENDPOINT}}"
+PEER_NODE_ENDPOINT="{{PEER_NODE_ENDPOINT}}"
+FABRIC_CA_ENDPOINT="{{FABRIC_CA_ENDPOINT}}"
+TLS_CERT_URL="{{TLS_CERT_URL}}"
+
 DOCKER_COMPOSE_VERSION=1.20.0
 GO_VERSION=1.14.2
 FABRIC_CA_VERSION=1.4.7
@@ -37,10 +43,10 @@ cd /home/ec2-user
 # shellcheck disable=SC2016
 echo 'export PATH=$PATH:/home/ec2-user/bin' >>/home/ec2-user/.bash_profile
 echo "export MSP_PATH=/opt/home/admin-msp
-export MSP={{MEMBER_ID}}
-export ORDERER={{ORDERING_SERVICE_ENDPOINT}}
-export PEER={{PEER_NODE_ENDPOINT}}
-export CA_ENDPOINT={{FABRIC_CA_ENDPOINT}}" >>/home/ec2-user/.bash_profile
+export MSP=${MEMBER_ID}
+export ORDERER=${ORDERING_SERVICE_ENDPOINT}
+export PEER=${PEER_NODE_ENDPOINT}
+export CA_ENDPOINT=${FABRIC_CA_ENDPOINT}" >>/home/ec2-user/.bash_profile
 source /home/ec2-user/.bash_profile
 
 # Setup Fabric-ca client profile
@@ -50,7 +56,7 @@ echo "
 # Client Configuration
 #############################################################################
 # URL of the Fabric-ca-server (default: http://localhost:7054)
-                  url: https://{{FABRIC_CA_ENDPOINT}}
+                  url: https:${FABRIC_CA_ENDPOINT}
 # Membership Service Provider (MSP) directory
 # This is useful when the client is used to enroll a peer or orderer, so
 # that the enrollment artifacts are stored in the format expected by MSP.
@@ -66,11 +72,11 @@ echo "
 " >/home/ec2-user/.fabric-ca-client/fabric-ca-client-config.yaml
 chmod 666 /home/ec2-user/.fabric-ca-client/fabric-ca-client-config.yaml
 # Download TLS cert
-wget "{{TLS_CERT_URL}}"
+wget "${TLS_CERT_URL}"
 # Download sample chaincode from github
 git clone -b "${FABRIC_SAMPLES_BRANCH}" https://github.com/hyperledger/fabric-samples.git
 # Bake in some fabric related ENV variables for convenience
-echo "export ORDERER={{ORDERING_SERVICE_ENDPOINT}}" >>/home/ec2-user/.bash_profile
+echo "export ORDERER=${ORDERING_SERVICE_ENDPOINT}" >>/home/ec2-user/.bash_profile
 echo "version: \"2\"
 services:
  cli:
@@ -83,9 +89,9 @@ services:
      - CORE_LOGGING_LEVEL=info # Set logging level to debug for more verbose logging
      - CORE_PEER_ID=cli
      - CORE_CHAINCODE_KEEPALIVE=10
-     - CORE_PEER_LOCALMSPID={{MEMBER_ID}}
+     - CORE_PEER_LOCALMSPID=${MEMBER_ID}
      - CORE_PEER_MSPCONFIGPATH=/opt/home/admin-msp
-     - CORE_PEER_ADDRESS={{PEER_NODE_ENDPOINT}}
+     - CORE_PEER_ADDRESS=${PEER_NODE_ENDPOINT}
      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/home/managedblockchain-tls-chain.pem
      - CORE_PEER_TLS_ENABLED=true
    working_dir: /opt/home

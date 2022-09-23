@@ -8,8 +8,14 @@ import software.amazon.awscdk.services.ec2.Instance
 import software.amazon.awscdk.services.ec2.InstanceClass
 import software.amazon.awscdk.services.ec2.InstanceSize
 import software.amazon.awscdk.services.ec2.InstanceType
+import software.amazon.awscdk.services.ec2.Peer
+import software.amazon.awscdk.services.ec2.Port
+import software.amazon.awscdk.services.ec2.SecurityGroup
+import software.amazon.awscdk.services.ec2.SubnetSelection
+import software.amazon.awscdk.services.ec2.SubnetType
 import software.amazon.awscdk.services.ec2.UserData
 import software.constructs.Construct
+import java.net.URL
 import kotlin.io.path.Path
 import kotlin.io.path.readText
 
@@ -42,16 +48,30 @@ class FabricClient(
                     "{{PEER_NODE_ENDPOINT}}" to it.nodes[0].endpoint,
                     "{{FABRIC_CA_ENDPOINT}}" to it.caEndpoint,
                     "{{TLS_CERT_URL}}" to
-                        "https://s3.%s.amazonaws.com/%s.managedblockchain/etc/managedblockchain-tls-chain.pem"
-                            .format(props.env.region, props.env.region)
+                            "https://s3.%s.amazonaws.com/%s.managedblockchain/etc/managedblockchain-tls-chain.pem"
+                                .format(props.env.region, props.env.region)
                 )
         }
+
+        val securityGroup = SecurityGroup.Builder.create(this, "FabricEC2SecurityGroup")
+            .vpc(props.vpc)
+            .description("Elections client security group")
+            .build()
+
+        val deployerIp = URL("https://checkip.amazonaws.com").readText().trim()
+
+        securityGroup.addIngressRule(
+            Peer.ipv4("$deployerIp/32"),
+            Port.tcp(22)
+        )
 
         Instance.Builder.create(this, "FabricEC2Client")
             .instanceType(InstanceType.of(InstanceClass.T3, InstanceSize.SMALL))
             .machineImage(AmazonLinuxImage())
             .userData(UserData.custom(userDataScript))
             .vpc(props.vpc)
+            .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
+            .securityGroup(securityGroup)
             .keyName(keyPair.keyName)
             .build()
     }
