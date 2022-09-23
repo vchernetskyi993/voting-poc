@@ -8,9 +8,12 @@ import software.amazon.awscdk.services.ec2.Instance
 import software.amazon.awscdk.services.ec2.InstanceClass
 import software.amazon.awscdk.services.ec2.InstanceSize
 import software.amazon.awscdk.services.ec2.InstanceType
+import software.amazon.awscdk.services.ec2.InterfaceVpcEndpointOptions
+import software.amazon.awscdk.services.ec2.InterfaceVpcEndpointService
 import software.amazon.awscdk.services.ec2.Peer
 import software.amazon.awscdk.services.ec2.Port
 import software.amazon.awscdk.services.ec2.SecurityGroup
+import software.amazon.awscdk.services.ec2.SubnetFilter
 import software.amazon.awscdk.services.ec2.SubnetSelection
 import software.amazon.awscdk.services.ec2.SubnetType
 import software.amazon.awscdk.services.ec2.UserData
@@ -65,7 +68,7 @@ class FabricClient(
             Port.tcp(22)
         )
 
-        Instance.Builder.create(this, "FabricEC2Client")
+        val client = Instance.Builder.create(this, "FabricEC2Client")
             .instanceType(InstanceType.of(InstanceClass.T3, InstanceSize.SMALL))
             .machineImage(AmazonLinuxImage())
             .userData(UserData.custom(userDataScript))
@@ -74,5 +77,18 @@ class FabricClient(
             .securityGroup(securityGroup)
             .keyName(keyPair.keyName)
             .build()
+
+        props.vpc.addInterfaceEndpoint(
+            "FabricEC2NetworkEndpoint",
+            InterfaceVpcEndpointOptions.builder()
+                .service(InterfaceVpcEndpointService(props.fabric.network.vpcEndpointServiceName))
+                .subnets(
+                    SubnetSelection.builder()
+                        .subnetFilters(listOf(SubnetFilter.byIds(listOf(client.instance.subnetId))))
+                        .build()
+                )
+                .privateDnsEnabled(true)
+                .build()
+        )
     }
 }

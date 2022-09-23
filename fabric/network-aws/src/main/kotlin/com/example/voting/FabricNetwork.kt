@@ -6,7 +6,6 @@ import io.github.cdklabs.cdkhyperledgerfabricnetwork.HyperledgerFabricNetwork
 import io.github.cdklabs.cdkhyperledgerfabricnetwork.HyperledgerFabricNodeProps
 import io.github.cdklabs.cdkhyperledgerfabricnetwork.InstanceType
 import io.github.cdklabs.cdkhyperledgerfabricnetwork.NetworkEdition
-import software.amazon.awscdk.CfnOutput
 import software.amazon.awscdk.services.ec2.IVpc
 import software.constructs.Construct
 
@@ -26,7 +25,6 @@ class FabricNetwork(
         props.init()
 
         network = buildNetwork(props.vpc)
-        createOutputs()
     }
 
     private fun buildNetwork(vpc: IVpc): HyperledgerFabricNetwork =
@@ -51,19 +49,4 @@ class FabricNetwork(
                 )
             )
             .build()
-
-    private fun createOutputs() {
-        CfnOutput.Builder.create(this, "AdminPasswordArn")
-            .description("Secret ARN for the Hyperledger Fabric admin password")
-            .value(network.adminPasswordSecret.secretFullArn ?: network.adminPasswordSecret.secretArn)
-            .build()
-        CfnOutput.Builder.create(this, "AdminPrivateKeyArn")
-            .description("Secret ARN for Hyperledger Fabric admin private key")
-            .value(network.adminPrivateKeySecret.secretFullArn ?: network.adminPrivateKeySecret.secretArn)
-            .build()
-        CfnOutput.Builder.create(this, "AdminSignedCertArn")
-            .description("Secret ARN for Hyperledger Fabric admin signed certificate")
-            .value(network.adminSignedCertSecret.secretFullArn ?: network.adminSignedCertSecret.secretArn)
-            .build()
-    }
 }
