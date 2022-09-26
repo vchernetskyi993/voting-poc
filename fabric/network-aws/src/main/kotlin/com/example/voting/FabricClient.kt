@@ -15,6 +15,11 @@ import software.amazon.awscdk.services.ec2.SecurityGroup
 import software.amazon.awscdk.services.ec2.SubnetSelection
 import software.amazon.awscdk.services.ec2.SubnetType
 import software.amazon.awscdk.services.ec2.UserData
+import software.amazon.awscdk.services.iam.Effect
+import software.amazon.awscdk.services.iam.PolicyDocument
+import software.amazon.awscdk.services.iam.PolicyStatement
+import software.amazon.awscdk.services.iam.Role
+import software.amazon.awscdk.services.iam.ServicePrincipal
 import software.constructs.Construct
 import java.net.URL
 import kotlin.io.path.Path
@@ -40,6 +45,7 @@ private fun createEc2(scope: Construct, props: FabricClientProps) =
         .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
         .securityGroup(createSecurityGroup(scope, props.vpc))
         .keyName(createKeyPair(scope).keyName)
+        .role(createRole(scope, props.network))
         .build()
 
 private fun createSecurityGroup(scope: Construct, vpc: IVpc): SecurityGroup {
@@ -73,5 +79,30 @@ private fun prepareUserDataScript(network: HyperledgerFabricNetwork, env: Enviro
             "{{FABRIC_CA_ENDPOINT}}" to network.caEndpoint,
             "{{TLS_CERT_URL}}" to
                     "https://s3.%s.amazonaws.com/%s.managedblockchain/etc/managedblockchain-tls-chain.pem"
-                        .format(env.region, env.region)
+                        .format(env.region, env.region),
+            "{{ADMIN_PASSWORD_ARN}}" to network.adminPasswordSecret.secretArn,
+            "{{AWS_REGION}}" to env.region!!,
+            "{{CHANNEL_CONFIG}}" to TODO("create configtx for gov org"),
         )
+
+private fun createRole(scope: Construct, network: HyperledgerFabricNetwork) =
+    Role.Builder.create(scope, "FabricEC2ClientRole")
+        .assumedBy(ServicePrincipal("ec2.amazonaws.com"))
+        .inlinePolicies(
+            mapOf(
+                "ReadAdminPassword" to PolicyDocument.Builder.create()
+                    .statements(
+                        listOf(
+                            PolicyStatement.Builder.create()
+                                .actions(
+                                    listOf("secretsmanager:GetSecretValue")
+                                )
+                                .resources(listOf(network.adminPasswordSecret.secretArn))
+                                .effect(Effect.ALLOW)
+                                .build(),
+                        )
+                    )
+                    .build(),
+            )
+        )
+        .build()
