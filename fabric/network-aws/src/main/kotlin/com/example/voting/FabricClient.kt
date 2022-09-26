@@ -1,5 +1,6 @@
 package com.example.voting
 
+import io.github.cdklabs.cdkhyperledgerfabricnetwork.HyperledgerFabricNetwork
 import software.amazon.awscdk.Environment
 import software.amazon.awscdk.services.ec2.AmazonLinuxImage
 import software.amazon.awscdk.services.ec2.CfnKeyPair
@@ -8,12 +9,9 @@ import software.amazon.awscdk.services.ec2.Instance
 import software.amazon.awscdk.services.ec2.InstanceClass
 import software.amazon.awscdk.services.ec2.InstanceSize
 import software.amazon.awscdk.services.ec2.InstanceType
-import software.amazon.awscdk.services.ec2.InterfaceVpcEndpointOptions
-import software.amazon.awscdk.services.ec2.InterfaceVpcEndpointService
 import software.amazon.awscdk.services.ec2.Peer
 import software.amazon.awscdk.services.ec2.Port
 import software.amazon.awscdk.services.ec2.SecurityGroup
-import software.amazon.awscdk.services.ec2.SubnetFilter
 import software.amazon.awscdk.services.ec2.SubnetSelection
 import software.amazon.awscdk.services.ec2.SubnetType
 import software.amazon.awscdk.services.ec2.UserData
@@ -22,73 +20,58 @@ import java.net.URL
 import kotlin.io.path.Path
 import kotlin.io.path.readText
 
-class FabricClientProps {
-    lateinit var vpc: IVpc
-    lateinit var fabric: FabricNetwork
-    lateinit var env: Environment
-}
+data class FabricClientProps(
+    val vpc: IVpc,
+    val network: HyperledgerFabricNetwork,
+    val env: Environment,
+)
 
-class FabricClient(
+fun buildFabricClient(
     scope: Construct,
-    id: String,
-    init: FabricClientProps.() -> Unit,
-) : Construct(scope, id) {
-    init {
-        val props = FabricClientProps()
-        props.init()
+    props: FabricClientProps,
+): Instance = createEc2(Construct(scope, "FabricClient"), props)
 
-        val keyPair = CfnKeyPair.Builder.create(this, "FabricEC2KeyPair")
-            .keyName("FabricEC2Key")
-            .keyType("ed25519")
-            .build()
+private fun createEc2(scope: Construct, props: FabricClientProps) =
+    Instance.Builder.create(scope, "FabricEC2Client")
+        .instanceType(InstanceType.of(InstanceClass.T3, InstanceSize.SMALL))
+        .machineImage(AmazonLinuxImage())
+        .userData(UserData.custom(prepareUserDataScript(props.network, props.env)))
+        .vpc(props.vpc)
+        .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
+        .securityGroup(createSecurityGroup(scope, props.vpc))
+        .keyName(createKeyPair(scope).keyName)
+        .build()
 
-        val userDataScript = props.fabric.network.let {
-            Path(System.getProperty("user.dir"), "resources", "client-data.sh")
-                .readText()
-                .replace(
-                    "{{MEMBER_ID}}" to it.memberId,
-                    "{{ORDERING_SERVICE_ENDPOINT}}" to it.ordererEndpoint,
-                    "{{PEER_NODE_ENDPOINT}}" to it.nodes[0].endpoint,
-                    "{{FABRIC_CA_ENDPOINT}}" to it.caEndpoint,
-                    "{{TLS_CERT_URL}}" to
-                            "https://s3.%s.amazonaws.com/%s.managedblockchain/etc/managedblockchain-tls-chain.pem"
-                                .format(props.env.region, props.env.region)
-                )
-        }
+private fun createSecurityGroup(scope: Construct, vpc: IVpc): SecurityGroup {
+    val securityGroup = SecurityGroup.Builder.create(scope, "FabricEC2SecurityGroup")
+        .vpc(vpc)
+        .description("Elections client security group")
+        .build()
 
-        val securityGroup = SecurityGroup.Builder.create(this, "FabricEC2SecurityGroup")
-            .vpc(props.vpc)
-            .description("Elections client security group")
-            .build()
+    val deployerIp = URL("https://checkip.amazonaws.com").readText().trim()
 
-        val deployerIp = URL("https://checkip.amazonaws.com").readText().trim()
+    securityGroup.addIngressRule(
+        Peer.ipv4("$deployerIp/32"),
+        Port.tcp(22)
+    )
 
-        securityGroup.addIngressRule(
-            Peer.ipv4("$deployerIp/32"),
-            Port.tcp(22)
-        )
-
-        val client = Instance.Builder.create(this, "FabricEC2Client")
-            .instanceType(InstanceType.of(InstanceClass.T3, InstanceSize.SMALL))
-            .machineImage(AmazonLinuxImage())
-            .userData(UserData.custom(userDataScript))
-            .vpc(props.vpc)
-            .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
-            .securityGroup(securityGroup)
-            .keyName(keyPair.keyName)
-            .build()
-
-        props.vpc.addInterfaceEndpoint(
-            "FabricEC2NetworkEndpoint",
-            InterfaceVpcEndpointOptions.builder()
-                .service(InterfaceVpcEndpointService(props.fabric.network.vpcEndpointServiceName))
-                .subnets(
-                    SubnetSelection.builder()
-                        .subnetFilters(listOf(SubnetFilter.byIds(listOf(client.instance.subnetId))))
-                        .build()
-                )
-                .privateDnsEnabled(true)
-                .build()
-        )
-    }
+    return securityGroup
 }
+
+private fun createKeyPair(scope: Construct) = CfnKeyPair.Builder.create(scope, "FabricEC2KeyPair")
+    .keyName("FabricEC2Key")
+    .keyType("ed25519")
+    .build()
+
+private fun prepareUserDataScript(network: HyperledgerFabricNetwork, env: Environment) =
+    Path(System.getProperty("user.dir"), "resources", "client-data.sh")
+        .readText()
+        .replace(
+            "{{MEMBER_ID}}" to network.memberId,
+            "{{ORDERING_SERVICE_ENDPOINT}}" to network.ordererEndpoint,
+            "{{PEER_NODE_ENDPOINT}}" to network.nodes[0].endpoint,
+            "{{FABRIC_CA_ENDPOINT}}" to network.caEndpoint,
+            "{{TLS_CERT_URL}}" to
+                    "https://s3.%s.amazonaws.com/%s.managedblockchain/etc/managedblockchain-tls-chain.pem"
+                        .format(env.region, env.region)
+        )

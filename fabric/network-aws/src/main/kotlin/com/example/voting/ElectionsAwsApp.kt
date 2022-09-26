@@ -6,9 +6,8 @@ import software.amazon.awscdk.StackProps
 
 fun main() {
     val app = App()
-    ElectionsAwsStack(
+    buildElectionsStack(
         app,
-        "ElectionsAwsStack",
         StackProps.builder()
             .env(
                 Environment.builder()
