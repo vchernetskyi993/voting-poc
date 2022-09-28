@@ -7,6 +7,7 @@ ORDERING_SERVICE_ENDPOINT="{{ORDERING_SERVICE_ENDPOINT}}"
 PEER_NODE_ENDPOINT="{{PEER_NODE_ENDPOINT}}"
 CA_URL="{{FABRIC_CA_ENDPOINT}}"
 TLS_CERT_URL="{{TLS_CERT_URL}}"
+SU_PASSWORD_ARN="{{SU_PASSWORD_ARN}}"
 ADMIN_PASSWORD_ARN="{{ADMIN_PASSWORD_ARN}}"
 AWS_REGION="{{AWS_REGION}}"
 NETWORK_DATA_BUCKET="{{NETWORK_DATA_BUCKET}}"
@@ -17,48 +18,109 @@ FABRIC_TOOLS_VERSION=2.2.4
 
 USER_HOME=/home/ec2-user
 
-cd $USER_HOME
+function main() {
+  yum update -y
+  pip install --upgrade awscli
 
-yum update -y
-pip install --upgrade awscli
+  downloadFabricBinaries
 
-# download fabric binaries
-mkdir -p fabric
+  # Download TLS cert
+  TLS_CERT=$USER_HOME/managedblockchain-tls-chain.pem
+  wget -O "$TLS_CERT" "${TLS_CERT_URL}"
 
-FABRIC_TOOLS_ARCHIVE=hyperledger-fabric-linux-amd64-"${FABRIC_TOOLS_VERSION}".tar.gz
-wget https://github.com/hyperledger/fabric/releases/download/v"${FABRIC_TOOLS_VERSION}"/"${FABRIC_TOOLS_ARCHIVE}"
-tar -xzf "${FABRIC_TOOLS_ARCHIVE}" -C fabric
+  enrollUsers
+  createChannel
+  deployChainCode
+}
 
-FABRIC_CA_ARCHIVE=hyperledger-fabric-ca-linux-amd64-"${FABRIC_CA_VERSION}".tar.gz
-wget https://github.com/hyperledger/fabric-ca/releases/download/v"${FABRIC_CA_VERSION}"/"${FABRIC_CA_ARCHIVE}"
-tar -xzf "${FABRIC_CA_ARCHIVE}" -C fabric
+#######################################
+# Download fabric binaries to ~/fabric folder.
+# Globals:
+#   USER_HOME
+#   FABRIC_TOOLS_VERSION
+#   FABRIC_CA_VERSION
+# Outputs:
+#   Fabric binaries and configs inside ~/fabric.
+#######################################
+function downloadFabricBinaries() {
+  cd $USER_HOME
+  mkdir -p fabric
 
-rm hyperledger-*.tar.gz
+  FABRIC_TOOLS_ARCHIVE=hyperledger-fabric-linux-amd64-"${FABRIC_TOOLS_VERSION}".tar.gz
+  wget https://github.com/hyperledger/fabric/releases/download/v"${FABRIC_TOOLS_VERSION}"/"${FABRIC_TOOLS_ARCHIVE}"
+  tar -xzf "${FABRIC_TOOLS_ARCHIVE}" -C fabric
 
-# shellcheck disable=SC2016
-echo 'export PATH=$PATH:'"$USER_HOME/fabric/bin" >>.bash_profile
-source .bash_profile
+  FABRIC_CA_ARCHIVE=hyperledger-fabric-ca-linux-amd64-"${FABRIC_CA_VERSION}".tar.gz
+  wget https://github.com/hyperledger/fabric-ca/releases/download/v"${FABRIC_CA_VERSION}"/"${FABRIC_CA_ARCHIVE}"
+  tar -xzf "${FABRIC_CA_ARCHIVE}" -C fabric
 
-# Download TLS cert
-wget -O managedblockchain-tls-chain.pem "${TLS_CERT_URL}"
+  rm hyperledger-*.tar.gz
 
-# --- enroll admin
-CA_PASSWORD=$(aws secretsmanager get-secret-value \
-  --region "$AWS_REGION" \
-  --secret-id "$ADMIN_PASSWORD_ARN" \
-  --query "SecretString" \
-  --output text)
-TLS_CERT=$USER_HOME/managedblockchain-tls-chain.pem
-MSP_PATH=$USER_HOME/admin-msp
+  # shellcheck disable=SC2016
+  echo 'export PATH=$PATH:'"$USER_HOME/fabric/bin" >>.bash_profile
+  source .bash_profile
 
-fabric-ca-client enroll \
-  -u https://admin:"$CA_PASSWORD"@"$CA_URL" \
-  --tls.certfiles "$TLS_CERT" \
-  -M "$MSP_PATH"
+  cd -
+}
 
-OU_CA_CERT=cacerts/"${CA_URL//[:.]/-}".pem
+#######################################
+# Register and enroll super user and administrator.
+# Globals:
+#   USER_HOME
+#   CA_URL
+#   TLS_CERT
+#   SU_PASSWORD_ARN
+#   ADMIN_PASSWORD_ARN
+# Outputs:
+#   SU_MSP_PATH
+#   ADMIN_MSP_PATH
+#######################################
+function enrollUsers() {
+  SU_PASSWORD=$(getSecret "$SU_PASSWORD_ARN")
+  BASE_MSP_PATH=$USER_HOME/msp
+  SU_MSP_PATH=$BASE_MSP_PATH/su
 
-echo "
+  fabric-ca-client enroll \
+    -u https://admin:"$(urlEncode "$SU_PASSWORD")"@"$CA_URL" \
+    --tls.certfiles "$TLS_CERT" \
+    -M "$SU_MSP_PATH"
+
+  cp -r $SU_MSP_PATH/signcerts $SU_MSP_PATH/admincerts
+
+  writeOUs "$SU_MSP_PATH"
+
+  USERNAME=govadmin
+  PASSWORD=$(getSecret "$ADMIN_PASSWORD_ARN")
+
+  fabric-ca-client register -d \
+    --url https://"$CA_URL" \
+    --id.name "$USERNAME" \
+    --id.secret "$PASSWORD" \
+    --id.type admin \
+    --tls.certfiles "$TLS_CERT"
+
+  ADMIN_MSP_PATH=$BASE_MSP_PATH/admin
+
+  fabric-ca-client enroll \
+    -u https://"$USERNAME":"$(urlEncode "$PASSWORD")"@"$CA_URL" \
+    -M "$ADMIN_MSP_PATH" \
+    --tls.certfiles "$TLS_CERT"
+
+  writeOUs "$ADMIN_MSP_PATH"
+}
+
+#######################################
+# URL-encode provided string.
+# Globals:
+#   CA_URL
+# Arguments:
+#   Msp path.
+# Outputs:
+#   Writes encoded string to stdout.
+#######################################
+function writeOUs() {
+  OU_CA_CERT=cacerts/"${CA_URL//[:.]/-}".pem
+  echo "
 NodeOUs:
   Enable: true
   ClientOUIdentifier:
@@ -73,86 +135,145 @@ NodeOUs:
   OrdererOUIdentifier:
     Certificate: $OU_CA_CERT
     OrganizationalUnitIdentifier: orderer
-" >"$MSP_PATH"/config.yaml
+" >"$1"/config.yaml
+}
 
-# --- create channel
-export FABRIC_CFG_PATH=$USER_HOME/fabric/channel
-mkdir -p "$FABRIC_CFG_PATH"
-cd "$FABRIC_CFG_PATH"
+#######################################
+# Create elections channel.
+# Globals:
+#   USER_HOME
+#   TLS_CERT
+#   ADMIN_MSP_PATH
+#   MEMBER_ID
+#   ORDERING_SERVICE_ENDPOINT
+#   PEER_NODE_ENDPOINT
+# Outputs:
+#   CHANNEL_ID
+#   ORDERER_URL
+#######################################
+function createChannel() {
+  export FABRIC_CFG_PATH=$USER_HOME/fabric/channel
+  mkdir -p "$FABRIC_CFG_PATH"
+  cd "$FABRIC_CFG_PATH"
 
-aws s3 cp s3://${NETWORK_DATA_BUCKET}/configtx.yaml configtx-template.yaml
+  aws s3 cp s3://${NETWORK_DATA_BUCKET}/configtx.yaml configtx-template.yaml
 
-yum install -y gettext
+  yum install -y gettext
 
-# exporting vars for envsubst to use
-export TLS_CERT
-export MSP_PATH
-export MEMBER_ID
-export ORDERER_URL=${ORDERING_SERVICE_ENDPOINT}
-export ORDERER_HOST=${ORDERER_URL%:*}
-export ORDERER_PORT=${ORDERER_URL#*:}
+  # exporting vars for envsubst to use
+  export TLS_CERT
+  export MSP_PATH=$ADMIN_MSP_PATH
+  export MEMBER_ID
+  export ORDERER_URL=${ORDERING_SERVICE_ENDPOINT}
+  export ORDERER_HOST=${ORDERER_URL%:*}
+  export ORDERER_PORT=${ORDERER_URL#*:}
 
-envsubst <configtx-template.yaml >configtx.yaml
+  envsubst <configtx-template.yaml >configtx.yaml
 
-configtxgen \
-  -profile VotingAppChannelEtcdRaft \
-  -outputBlock genesis_voting.pb \
-  -channelID voting
+  CHANNEL_ID=voting
 
-echo "
+  configtxgen \
+    -profile VotingAppChannelEtcdRaft \
+    -outputCreateChannelTx genesis_voting.pb \
+    -channelID $CHANNEL_ID
+
+  echo "
 export FABRIC_CFG_PATH=$USER_HOME/fabric/config
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_LOCALMSPID=$MEMBER_ID
-export CORE_PEER_MSPCONFIGPATH=$MSP_PATH
+export CORE_PEER_MSPCONFIGPATH=$ADMIN_MSP_PATH
 export CORE_PEER_ADDRESS=$PEER_NODE_ENDPOINT
 export CORE_PEER_TLS_ROOTCERT_FILE=$TLS_CERT
 " >>$USER_HOME/.bash_profile
-source $USER_HOME/.bash_profile
+  source $USER_HOME/.bash_profile
 
-peer channel create \
-  --channelID voting \
-  --file genesis_voting.pb \
-  --orderer "$ORDERER_URL" \
-  --cafile "$TLS_CERT" \
-  --tls
+  peer channel create \
+    --channelID $CHANNEL_ID \
+    --file genesis_voting.pb \
+    --orderer "$ORDERER_URL" \
+    --cafile "$TLS_CERT" \
+    --tls
 
-peer channel join -b genesis_voting.pb
+  peer channel join -b genesis_voting.pb
 
-# --- deploy chaincode
-cd $USER_HOME
+  cd -
+}
 
-git clone https://github.com/vchernetskyi993/voting-poc
-cd voting-poc/fabric/chaincode
+#######################################
+# Deploy elections chaincode.
+# Globals:
+#   USER_HOME
+#   TLS_CERT
+#   PEER_NODE_ENDPOINT
+#   ORDERER_URL
+#   CHANNEL_ID
+#######################################
+function deployChainCode() {
+  cd $USER_HOME
 
-./gradlew installDist
+  git clone https://github.com/vchernetskyi993/voting-poc
+  cd voting-poc/fabric/chaincode
 
-peer lifecycle chaincode package cc.tar.gz \
-  --path build/install/elections/ \
-  --lang java \
-  --label elections_0.1.0
+  ./gradlew installDist
 
-CC_INSTALL_LOG=/var/log/cc-install.log
-peer lifecycle chaincode install cc.tar.gz >"${CC_INSTALL_LOG}" 2>&1
+  peer lifecycle chaincode package cc.tar.gz \
+    --path build/install/elections/ \
+    --lang java \
+    --label elections_0.1.0
 
-cat "${CC_INSTALL_LOG}"
+  CC_INSTALL_LOG=/var/log/cc-install.log
+  peer lifecycle chaincode install cc.tar.gz >"${CC_INSTALL_LOG}" 2>&1
 
-PACKAGE_ID=$(tail -n 1 "${CC_INSTALL_LOG}" | awk '{print $NF}')
+  cat "${CC_INSTALL_LOG}"
 
-peer lifecycle chaincode approveformyorg \
-  --orderer "$ORDERER_URL" \
-  --cafile "$TLS_CERT" \
-  --tls \
-  --channelID voting \
-  --name elections \
-  --version 0.1.0 \
-  --package-id "$PACKAGE_ID" \
-  --sequence 1
+  PACKAGE_ID=$(tail -n 1 "${CC_INSTALL_LOG}" | awk '{print $NF}')
 
-peer lifecycle chaincode commit \
-  --orderer "$ORDERER_URL" \
-  --cafile "$TLS_CERT" \
-  --tls \
-  --channelID voting \
-  --name elections \
-  --version 0.1.0 \
-  --sequence 1
+  peer lifecycle chaincode approveformyorg \
+    --orderer "$ORDERER_URL" \
+    --cafile "$TLS_CERT" \
+    --tls \
+    --channelID "$CHANNEL_ID" \
+    --name elections \
+    --version 0.1.0 \
+    --package-id "$PACKAGE_ID" \
+    --sequence 1
+
+  peer lifecycle chaincode commit \
+    --orderer "$ORDERER_URL" \
+    --cafile "$TLS_CERT" \
+    --tls \
+    --channelID "$CHANNEL_ID" \
+    --name elections \
+    --version 0.1.0 \
+    --sequence 1
+
+  cd -
+}
+
+#######################################
+# Fetch secret value from SecretsManager.
+# Arguments:
+#   ARN of the secret to retrieve.
+# Outputs:
+#   Writes secret value to stdout.
+#######################################
+function getSecret() {
+  aws secretsmanager get-secret-value \
+    --region "$AWS_REGION" \
+    --secret-id "$1" \
+    --query "SecretString" \
+    --output text
+}
+
+#######################################
+# URL-encode provided string.
+# Arguments:
+#   String value to encode.
+# Outputs:
+#   Writes encoded string to stdout.
+#######################################
+function urlEncode() {
+  python -c "import urllib;print urllib.quote(raw_input())" <<<"$SU_PASSWORD"
+}
+
+main

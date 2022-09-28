@@ -402,6 +402,7 @@ Profiles:
     
     VotingAppChannelEtcdRaft:
         <<: *ChannelDefaults
+        Consortium: AWSSystemConsortium
         Orderer:
             <<: *OrdererDefaults
             Organizations:
