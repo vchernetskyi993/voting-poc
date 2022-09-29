@@ -92,6 +92,7 @@ function enrollUsers() {
   USERNAME=govadmin
   PASSWORD=$(getSecret "$ADMIN_PASSWORD_ARN")
 
+  # FIXME: this step fails due to no admin-creation permissions
   fabric-ca-client register -d \
     --url https://"$CA_URL" \
     --id.name "$USERNAME" \

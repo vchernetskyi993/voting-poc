@@ -2,7 +2,7 @@
 
 Uses AWS CDK to deploy network and one client to AWS.
 
-[//]: # (TODO: add diagram)
+![diagram](./diagram.png)
 
 ## Deployment
 
@@ -13,6 +13,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
 ## Usage
 
+Connect to EC2 client:
 ```shell
 # retrieve ssh private key
 aws ssm get-parameter \
@@ -30,3 +31,6 @@ EC2_PUBLIC_DNS=$(aws ec2 describe-instances \
 # ssh into ec2 using private key
 ssh -i ec2.pem ec2-user@$EC2_PUBLIC_DNS
 ```
+
+Interact with chaincode:
+... - not working for now see this [fixme](./resources/client-data.sh#L95)
